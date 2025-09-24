@@ -1,0 +1,263 @@
+{% extends "base.html" %}
+
+{% block title %} Dashboard {% endblock %}
+
+{% block css %}
+
+<style>
+  .form-data {
+    max-width: 420px;
+    width: 100%;
+    margin: 0 auto;
+    padding: 1.5rem;
+    padding-top: 4rem;
+    height: 100%;
+  }
+
+  .form-data-1 {
+    border-radius: 1rem;
+    width: 100%;
+
+  }
+
+  .form-data .form-title {
+    font-size: 1.2rem;
+    font-weight: 600;
+    margin-bottom: 1.5rem;
+  }
+
+  .form-item {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 1.5rem;
+  }
+
+  .form-item label {
+    margin-bottom: 0.5rem;
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: #374151;
+  }
+
+  .form-item input,
+  .form-item select {
+    padding: 0.5rem 1rem;
+    font-size: 14px;
+    outline: none;
+    width: 100%;
+    border: none;
+    border: 2px solid #ffff;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    background: #f9fafb;
+    padding: 0.8rem;
+    border-radius: 0.5rem;
+  }
+
+  .form-item input:focus,
+  .form-item select:focus {
+    color: #6e0fd6;
+    outline: none;
+    /* optional: remove default focus outline */
+    border-bottom: 2px solid #6e0fd6;
+    /* optional: add border highlight */
+  }
+
+
+
+  .form-actions {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-direction: row;
+  }
+
+  .form-item .submit-btn,
+  .form-item .cancel-btn {
+    width: 100%;
+    padding: 0.75rem;
+    border: none;
+    border-radius: 0.5rem;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s, box-shadow 0.2s;
+    text-align: center;
+    display: inline-block;
+    text-decoration: none;
+    margin-top: 0.5rem;
+  }
+
+  .form-item .submit-btn {
+    background-color: #7f13ec;
+    color: white;
+  }
+
+  .form-item .submit-btn:hover {
+    background-color: #6e0fd6;
+    box-shadow: 0 4px 12px rgba(111, 15, 214, 0.3);
+  }
+
+  .form-item .cancel-btn {
+    color: #374151;
+    background-color: #f9fafb;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    border: 2px solid #fff;
+  }
+</style>
+
+{% endblock %}
+
+
+
+
+{% block content %}
+
+
+<section class="form-data">
+
+  <div class="form-data-1">
+    <h3 class="form-title">Edit Transaction</h3>
+    <form method="POST" action="">
+      <div class="form-item">
+        <label for="description">Description</label>
+        <input type="text" name="description" id="description" value="{{ txn['description'] }}" required>
+      </div>
+
+      <div class="form-item">
+        <label for="amount">Amount (₹)</label>
+        <input type="number" name="amount" id="amount" step="0.01" value="{{ txn['amount'] }}" required>
+      </div>
+
+      <div class="form-item">
+        <label for="category">Category</label>
+        <select name="category" id="category" required>
+          {% for cat in categories %}
+          <option value="{{ cat }}" {% if txn['category']==cat %}selected{% endif %}>{{ cat }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="form-item">
+        <label for="sub_category">Subcategory</label>
+        <select name="sub_category" id="sub_category" required>
+          {% for sub in categories[txn['category']] %}
+          <option value="{{ sub }}" {% if txn['sub_category']==sub %}selected{% endif %}>{{ sub }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="form-item form-actions">
+        <a href="javascript:void(0);" class="cancel-btn" onclick="history.back()">Cancel</a>
+        <button type="submit" class="submit-btn">Update</button>
+      </div>
+    </form>
+
+  </div>
+
+</section>
+
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+{% if messages %}
+<div id="flash-messages" style="
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    backdrop-filter: blur(5px);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    z-index: 9999;
+">
+  {% for category, message in messages %}
+  <div class="flash {{ category }}" style="
+      padding: 32px 24px;
+      border-radius: 16px;
+      background-color: #f9fafb;
+      border: 2px solid #fff;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+      text-align: center;
+      opacity: 0;
+      transform: translateY(-20px);
+      transition: opacity 0.5s ease, transform 0.5s ease;
+  ">
+    <div style="
+        width: 60px;
+        height: 60px;
+        margin: 0 auto 16px auto;
+        border-radius: 50%;
+        background-color: #34d399;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 28px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    ">
+      {% if category=='success' %}✅{% else %}❌{% endif %}
+    </div>
+    <div style="font-size: 20px; font-weight: 700; margin-bottom: 8px;">{{ category|capitalize }}</div>
+    <div style="font-size: 14px; color: #4b5563;">{{ message }}</div>
+  </div>
+  {% endfor %}
+</div>
+
+<script>
+const flashes = document.querySelectorAll('#flash-messages .flash');
+
+flashes.forEach((flash, index) => {
+  // Animate in
+  setTimeout(() => {
+    flash.style.opacity = '1';
+    flash.style.transform = 'translateY(0)';
+  }, index * 100);
+
+  // Auto-hide after 3 seconds
+  setTimeout(() => {
+    flash.style.opacity = '0';
+    flash.style.transform = 'translateY(-20px)';
+
+    // Remove flash after animation
+    setTimeout(() => {
+      flash.remove();
+
+      // If no more flashes left, remove parent overlay
+      const parent = document.getElementById('flash-messages');
+      if (parent && parent.children.length === 0) {
+        parent.remove();
+      }
+
+    }, 500);
+  }, 1100 + index * 100);
+});
+</script>
+
+{% endif %}
+{% endwith %}
+
+
+
+<script>
+  const categorySelect = document.getElementById("category");
+  const subCategorySelect = document.getElementById("sub_category");
+
+  const categories = {{ categories | tojson }};
+
+  categorySelect.addEventListener("change", () => {
+    const selectedCat = categorySelect.value;
+    subCategorySelect.innerHTML = "";
+    categories[selectedCat].forEach(sub => {
+      const opt = document.createElement("option");
+      opt.value = sub;
+      opt.textContent = sub;
+      subCategorySelect.appendChild(opt);
+    });
+  });
+</script>
+
+
+
+{% endblock %}

@@ -1,0 +1,9 @@
+{% extends "layout.html" %}
+{% block title %}Internal Server Error{% endblock %}
+{% block body %}
+<div style="text-align:center;">
+  <h1>500 - Server Error</h1>
+  <p>Sorry, something went wrong on our end.</p>
+  <a href="{{ url_for('index') }}">Return to Home</a>
+</div>
+{% endblock %}

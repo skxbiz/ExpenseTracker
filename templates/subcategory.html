@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>{{ category }} → {{ sub_category }}</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen py-10">
+
+<div class="max-w-4xl mx-auto">
+
+  <div class="flex justify-between items-center mb-6">
+    <h2 class="text-3xl font-bold">{{ category }} → {{ sub_category }}</h2>
+    <a href="/" class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded-lg transition">⬅ Dashboard</a>
+  </div>
+
+  <table class="min-w-full bg-white shadow-lg rounded-xl overflow-hidden">
+    <thead class="bg-blue-500 text-white">
+      <tr>
+        <th class="py-3 px-4 text-left">ID</th>
+        <th class="py-3 px-4 text-left">Description</th>
+        <th class="py-3 px-4 text-left">Amount</th>
+        <th class="py-3 px-4 text-left">Date</th>
+        <th class="py-3 px-4 text-left">Action</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for txn in transactions %}
+      <tr class="border-b hover:bg-gray-50">
+        <td class="py-2 px-4">{{ txn.id }}</td>
+        <td class="py-2 px-4">{{ txn.description }}</td>
+        <td class="py-2 px-4">₹{{ txn.amount }}</td>
+        <td class="py-2 px-4">{{ txn.date_time }}</td>
+        <td class="py-2 px-4">
+          <a href="/edit/{{ txn.id }}" class="text-blue-600 hover:underline">Edit</a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+</div>
+</body>
+</html>

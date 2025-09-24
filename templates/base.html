@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Money Tracker {% block title %} {% endblock %}</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+
+
+    <style>
+        /* ######################## body ############################### */
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        html,
+        body {
+            height: 100%;
+            margin: 0;
+            padding-bottom: 2rem;
+            overflow-y: scroll;
+            /* keep scrolling */
+            -ms-overflow-style: none;
+            /* IE & Edge */
+            scrollbar-width: none;
+            /* Firefox */
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            background: #f9fafb;
+            color: #1e293b;
+
+        }
+
+
+        html::-webkit-scrollbar,
+        body::-webkit-scrollbar {
+            display: none;
+            /* Chrome, Safari, Opera */
+        }
+
+
+
+        .header {
+        text-align: center;
+        margin-bottom: 2rem;
+    }
+
+    .header h2 {
+        font-size: 1rem;
+        font-weight: 500;
+    }
+
+    .profile {
+        text-align: left;
+        margin-bottom: 1.5rem;
+        display: flex;
+        align-items: center;
+        justify-content: flex-start;
+        gap: 1rem;
+    }
+
+    .profile .profile-info {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        justify-content: center;
+    }
+
+    .profile img {
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.25);
+
+        border: 4px solid white;
+    }
+
+    .profile h3 {
+        margin: 0;
+        margin-bottom: 0.1rem;
+        font-size: 1.2rem;
+        font-weight: 700;
+    }
+
+
+
+
+
+        /* ############################### navigation ######################## */
+        /* Bottom navigation */
+
+        .bottom-navigation {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: #f9fafb;
+            padding: 0.5rem;
+            padding-top: 0;
+            z-index: 50;
+        }
+
+        .bottom-nav {
+
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            padding: 1rem;
+            border: 3px solid #fff;
+            background: #f9fafb;
+            border-radius: 5rem;
+            gap: 0.5rem;
+
+        }
+
+        .nav-item {
+            flex: 1;
+            text-align: center;
+            font-size: 0.7rem;
+            color: #9ca3af;
+            text-decoration: none;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.3rem;
+            font-weight: 500;
+            transition: color 0.2s;
+        }
+
+        .nav-item .icon {
+            background: transparent;
+            width: 20px;
+            height: 20px;
+        }
+
+        .nav-item .icon svg {
+            width: 18px;
+            height: 18px;
+        }
+
+        .nav-item.active {
+            color: #7f13ec;
+            font-weight: 600;
+        }
+
+        /* Floating Action Button */
+        .fab {
+
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            background: #7f13ec;
+            color: white;
+            font-size: 1.8rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
+        }
+    </style>
+
+    {% block css %}
+
+    {% endblock %}
+</head>
+
+<body>
+
+
+    <section style="margin: 2rem 0;">
+        {% block content %}
+
+        {% endblock %}
+
+    </section>
+
+
+
+
+    <!-- Bottom Navigation -->
+
+    <section class="bottom-navigation">
+        <div class="bottom-nav">
+            <a href="{{ url_for('index') }}" class="nav-item {% if request.endpoint=='index' %}active{% endif %}">
+                <span class="icon">
+                    <!-- Home -->
+                    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="currentColor"
+                        viewBox="0 0 24 24">
+                        <path
+                            d="M3 9.75L12 3l9 6.75V21a1 1 0 0 1-1 1h-5.5a.5.5 0 0 1-.5-.5V15h-4v6.5a.5.5 0 0 1-.5.5H4a1 1 0 0 1-1-1V9.75z" />
+                    </svg>
+                </span>
+                <span>Home</span>
+            </a>
+
+            <a href="{{url_for('analytics')}}" class="nav-item">
+                <span class="icon">
+                    <!-- Analytics -->
+                    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="currentColor"
+                        viewBox="0 0 24 24">
+                        <path d="M5 3h2v18H5V3zm6 6h2v12h-2V9zm6-4h2v16h-2V5z" />
+                    </svg>
+                </span>
+                <span>Analytics</span>
+            </a>
+
+            <a href="/add" class="fab">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none">
+                    <path d="M12 5v14M5 12h14" stroke="white" stroke-width="2.5" stroke-linecap="round"
+                        stroke-linejoin="round" />
+                </svg>
+            </a>
+
+
+            <a href="#" class="nav-item">
+                <span class="icon">
+                    <!-- Wallet -->
+                    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="currentColor"
+                        viewBox="0 0 24 24">
+                        <path
+                            d="M2 7a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v2h-7a3 3 0 0 0 0 6h7v2a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V7zm14 5a1 1 0 1 1 0 2h6v-2h-6z" />
+                    </svg>
+                </span>
+                <span>Wallet</span>
+            </a>
+
+            <a href="{{ url_for('profile') }}" class="nav-item {% if request.endpoint=='profile' %}active{% endif %}">
+                <span class="icon">
+                    <!-- Profile -->
+                    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="currentColor"
+                        viewBox="0 0 24 24">
+                        <path
+                            d="M12 12c2.7 0 5-2.3 5-5s-2.3-5-5-5-5 2.3-5 5 2.3 5 5 5zm0 2c-3.3 0-10 1.7-10 5v3h20v-3c0-3.3-6.7-5-10-5z" />
+                    </svg>
+                </span>
+                <span>Profile</span>
+            </a>
+        </div>
+
+    </section>
+
+
+
+    {% block scripts %}
+
+    {% endblock %}
+</body>
+
+</html>

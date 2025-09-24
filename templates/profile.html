@@ -1,0 +1,376 @@
+{% extends "base.html" %}
+
+{% block title %} Profile {% endblock %}
+
+{% block css %}
+<style>
+  .container {
+    max-width: 480px;
+    width: 100%;
+    padding: 24px 16px;
+  }
+
+  .profile-header {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-bottom: 32px;
+  }
+
+  .profile-pic-wrapper {
+    position: relative;
+    margin-bottom: 16px;
+  }
+
+  .profile-pic-border {
+    width: 128px;
+    height: 128px;
+    border-radius: 50%;
+    padding: 4px;
+    background: linear-gradient(to top right, #7f13ec, #c280ff);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .profile-pic-border img {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 4px solid white;
+  }
+
+  .edit-btn {
+    position: absolute;
+    bottom: 4px;
+    right: 4px;
+    background: white;
+    color: #7f13ec;
+    border: 1px solid #ddd;
+    border-radius: 50%;
+    padding: 6px;
+    cursor: pointer;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+  }
+
+  .profile-header h2 {
+    font-size: 1.5rem;
+    font-weight: bold;
+    margin: 0 0 8px;
+  }
+
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: #e0b3ff;
+    color: #7f13ec;
+    font-weight: 600;
+    padding: 4px 12px;
+    border-radius: 999px;
+    font-size: 0.9rem;
+  }
+
+  .profile-card {
+    border-radius: 20px;
+    padding: 0.5rem 1rem;
+  }
+
+  .profile-card h4 {
+    color: #6b7280;
+    margin-bottom: 1rem;
+    font-size: 0.9rem;
+  }
+
+  .list-item {
+    display: flex;
+    align-items: center;
+    background: #f9fafb;
+    border-radius: 12px;
+    padding: 12px;
+    margin-bottom: 12px;
+    transition: all 0.3s ease;
+    cursor: pointer;
+    border: 2px solid #fff;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  }
+
+  .list-item:hover {
+    transform: translateX(5px);
+  }
+
+  .list-item-icon {
+    background: #e0b3ff;
+    color: #7f13ec;
+    border-radius: 50%;
+    padding: 8px;
+    margin-right: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .list-item span {
+    flex: 1;
+    font-weight: 600;
+  }
+
+  .list-item svg:last-child {
+    color: #5c5c5c;
+  }
+
+  /* Modal Styles */
+  .modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    backdrop-filter: blur(3px);
+    align-items: center;
+    justify-content: center;
+  }
+
+  .modal-content {
+    background: #f9fafb;
+    border: 2px solid #fff;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    padding: 32px 24px;
+    border-radius: 18px;
+    max-width: 400px;
+    width: 90%;
+    text-align: center;
+    animation: fadeIn 0.3s ease;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .modal-header-icon {
+    width: 60px;
+    height: 60px;
+    margin: 0 auto 10px auto;
+    border-radius: 50%;
+    background-color: #7f13ec;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 36px;
+    box-shadow: 0 4px 12px rgba(127, 19, 236, 0.12);
+  }
+
+  .modal-content h3 {
+    font-size: 1.2rem;
+    font-weight: bold;
+    margin-bottom: 1rem;
+  }
+
+  .modal-content input[type="file"] {
+    margin-bottom: 20px;
+    width: 100%;
+    padding: 12px;
+    border-radius: 10px;
+    border: 2px solid #ffff;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    background: #f9fafb;
+  }
+
+  .modal-content button {
+    padding: 12px 20px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+    margin: 8px 6px;
+    font-size: 1rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  }
+
+  .btn-primary {
+    background: #7f13ec;
+    border: 2px solid #7f13ec;
+    color: white;
+  }
+
+  .btn-secondary {
+    background: #f9fafb;
+    border: 2px solid #fff;
+
+  }
+
+  /* Flash overlay styles */
+  #flash-messages {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    backdrop-filter: blur(5px);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    z-index: 9999;
+    padding: 1.5rem;
+  }
+
+  #flash-messages .flash {
+    padding: 32px 24px;
+    border-radius: 16px;
+    background: #f9fafb;
+    border: 2px solid #fff;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    text-align: center;
+    opacity: 0;
+    transform: translateY(-20px);
+    transition: opacity 0.5s, transform 0.5s;
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(-10px);
+    }
+
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+  <!-- Profile Header -->
+  <div class="profile-header">
+    <div class="profile-pic-wrapper">
+      <div class="profile-pic-border">
+        <img src="https://cdn-icons-png.flaticon.com/512/3135/3135715.png" alt="Profile Image" />
+      </div>
+      <button class="edit-btn">✏️</button>
+    </div>
+    <h2>Rio Mario</h2>
+    <div class="badge">⭐ Premium Member</div>
+  </div>
+  <!-- Account Section -->
+  <div class="profile-card">
+    <h4>Account</h4>
+    <ul>
+      <li class="list-item">
+        <div class="list-item-icon">👤</div><span>Personal Information</span>➡️
+      </li>
+      <li class="list-item">
+        <div class="list-item-icon">🔒</div><span>Security</span>➡️
+      </li>
+      <li class="list-item">
+        <div class="list-item-icon">⚙️</div><span>Preferences</span>➡️
+      </li>
+    </ul>
+  </div>
+  <!-- Data Section -->
+  <div class="profile-card">
+    <h4>Data</h4>
+    <ul>
+      <li class="list-item" onclick="showDownloadModal()">
+        <div class="list-item-icon">⬇️</div><span>Download Data</span>➡️
+      </li>
+      <li class="list-item" onclick="openUploadModal()">
+        <div class="list-item-icon">⬆️</div><span>Upload Data</span>➡️
+      </li>
+    </ul>
+  </div>
+</div>
+
+<!-- Upload Modal (styled like flash box) -->
+<div id="uploadModal" class="modal">
+  <div class="modal-content">
+    <div class="modal-header-icon">⬆️</div>
+    <h3>Upload Data</h3>
+    <form action="{{ url_for('upload_backup') }}" method="post" enctype="multipart/form-data">
+      <input type="file" name="file" accept=".xlsx" required>
+      <div>
+        <button type="submit" class="btn-primary">Submit</button>
+        <button type="button" class="btn-secondary" onclick="closeUploadModal()">Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Download Modal -->
+<div id="downloadModal" class="modal">
+  <div class="modal-content">
+    <div class="modal-header-icon">⬇️</div>
+    <h3>Download Data</h3>
+    <div style="margin-bottom:1rem;font-size:0.9rem;color:#444;">Are you sure you want to download the backup Excel
+      file?</div>
+    <div>
+      <button class="btn-primary" onclick="proceedDownload()">Confirm</button>
+      <button class="btn-secondary" onclick="closeDownloadModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Success/Error Flash Message Overlay -->
+{% with messages = get_flashed_messages(with_categories=true) %}
+{% if messages %}
+<div id="flash-messages">
+  {% for category, message in messages %}
+  <div class="flash {{ category }}">
+    <div
+      style="width: 56px; height: 56px; margin: 0 auto 16px auto; border-radius: 50%; background: {{ '#7f13ec' if category=='success' else '#ef4444' }}; color: white; display: flex; align-items: center; justify-content: center; font-size: 28px;">
+      {% if category=='success' %}✅{% else %}❌{% endif %}
+    </div>
+    <div style="font-size: 20px; font-weight: 700; margin-bottom: 8px;">{{ category | capitalize }}</div>
+    <div style="font-size: 14px; color: #4b5563;">{{ message }}</div>
+  </div>
+  {% endfor %}
+</div>
+<script>
+  const flashes = document.querySelectorAll('#flash-messages .flash');
+  flashes.forEach((flash, index) => {
+    setTimeout(() => {
+      flash.style.opacity = '1';
+      flash.style.transform = 'translateY(0)';
+    }, index * 100);
+    setTimeout(() => {
+      flash.style.opacity = '0';
+      flash.style.transform = 'translateY(-20px)';
+      setTimeout(() => {
+        flash.remove();
+        const parent = document.getElementById('flash-messages');
+        if (parent && parent.children.length === 0) {
+          parent.remove();
+        }
+      }, 500);
+    }, 2500 + index * 100); // 2.5 seconds visible
+  });
+</script>
+{% endif %}
+{% endwith %}
+
+<script>
+  // Modal logic
+  const uploadModal = document.getElementById("uploadModal");
+  function openUploadModal() { uploadModal.style.display = "flex"; }
+  function closeUploadModal() { uploadModal.style.display = "none"; }
+
+  const downloadModal = document.getElementById("downloadModal");
+  function showDownloadModal() { downloadModal.style.display = "flex"; }
+  function closeDownloadModal() { downloadModal.style.display = "none"; }
+  function proceedDownload() {
+    downloadModal.style.display = "none";
+    window.location.href = "{{ url_for('download_backup') }}";
+  }
+
+  // Close modals on backdrop click
+  window.onclick = function (event) {
+    if (event.target === uploadModal) { closeUploadModal(); }
+    if (event.target === downloadModal) { closeDownloadModal(); }
+  }
+</script>
+{% endblock %}

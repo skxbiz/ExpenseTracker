@@ -1,0 +1,398 @@
+{% extends "base.html" %}
+
+{% block title %} Dashboard {% endblock %}
+
+{% block css %}
+
+<style>
+  .container {
+    max-width: 420px;
+    margin: 0 auto;
+    padding: 1.5rem;
+  }
+
+  .header {
+    text-align: center;
+    margin-bottom: 2rem;
+  }
+
+  .header h2 {
+    font-size: 1rem;
+    font-weight: 500;
+  }
+
+  .profile {
+    text-align: left;
+    margin-bottom: 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 1rem;
+  }
+
+  .profile .profile-info {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    justify-content: center;
+  }
+
+  .profile img {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.25);
+
+    border: 4px solid white;
+  }
+
+  .profile h3 {
+    margin: 0;
+    margin-bottom: 0.1rem;
+    font-size: 1.2rem;
+    font-weight: 700;
+  }
+
+
+
+  .card {
+    background: white;
+    border-radius: 16px;
+    padding: 2rem 1rem;
+    margin-bottom: 1rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+
+  }
+
+  .card h4 {
+    margin: 0 0 0.5rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #ffffffad;
+  }
+
+  .big-value {
+    font-size: 1.5rem;
+    font-weight: 800;
+  }
+
+  .grid {
+    display: flex;
+    gap: 1rem;
+  }
+
+  .grid .card {
+    flex: 1;
+    text-align: left;
+  }
+
+  .income {
+    color: #22c55e;
+  }
+
+  .expenses {
+    color: #ef4444;
+  }
+
+  /* Filter bar */
+  /* Filter bar */
+
+
+  .filter-heading {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+  }
+
+  .filter-heading select {
+    background: none;
+    border: none;
+  }
+
+  .filter-heading select:focus {
+    outline: none;
+    border: none;
+  }
+
+
+  .filter-bar {
+    display: flex;
+    gap: 0.5rem;
+    overflow-x: auto;
+    white-space: nowrap;
+    padding-bottom: 0.5rem;
+    scrollbar-width: none;
+    /* Firefox */
+  }
+
+  .filter-heading {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #ffffffad;
+  }
+
+  .filter-bar::-webkit-scrollbar {
+    display: none;
+    /* Chrome, Safari */
+  }
+
+  .filter-btn {
+    flex: 0 0 auto;
+    /* Prevent shrinking */
+    padding: 0.5rem 1rem;
+    border: 2px solid #fff;
+    border-radius: 20px;
+    font-size: 0.9rem;
+    cursor: pointer;
+    background: #f9fafb;
+    color: #374151;
+    transition: all 0.2s;
+    white-space: nowrap;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    /* Keep text in single line */
+  }
+
+  .filter-btn.active {
+    color: white;
+    background-color: black;
+
+  }
+
+  /* Transactions */
+  .transaction {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 0;
+    border-bottom: 1px solid #f1f5f9;
+    text-decoration: none;
+    color: #000;
+  }
+
+  .transaction:last-child {
+    border-bottom: none;
+  }
+
+  .transaction-left {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .icon {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 12px;
+    font-size: 1.2rem;
+    background: #f3f4f6;
+  }
+
+  .transaction-info {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .transaction-title {
+    font-weight: 600;
+    font-size: 0.95rem;
+  }
+
+  .transaction-sub {
+    font-size: 0.8rem;
+    color: #6b7280;
+  }
+
+  .amount-pos {
+    color: #22c55e;
+    font-weight: 600;
+  }
+
+  .amount-neg {
+    color: #ef4444;
+    font-weight: 600;
+  }
+</style>
+
+{% endblock %}
+
+
+
+
+{% block content %}
+<div class="container">
+  <!-- Header -->
+  <div class="header">
+    <h2>Dashboard</h2>
+  </div>
+
+  <!-- Profile -->
+  <div class="profile">
+    <img src="https://cdn-icons-png.flaticon.com/512/3135/3135715.png" alt="Profile">
+    <div class="profile-info">
+      <h3>Rio Mario</h3>
+      <h5 style="margin: 0;color: #171717c7;font-weight: 300;">Financial Overview</h4>
+    </div>
+  </div>
+
+  <!-- Net Worth -->
+  <div class="card" style="text-align:left; background:#4a43a0; color:white;  border: 2px solid #fff;">
+    <h4>Net Worth</h4>
+    <div class="big-value">₹ {{networth}}</div>
+    <!-- <div style="color: #22c55e;">+ 5%</div> -->
+  </div>
+
+  <!-- Income & Expenses -->
+  <div class="grid">
+    <div class="card" style="background:#6dd4c3; color:white;  border: 2px solid #fff;">
+      <h4>Income</h4>
+      <div class="big-value">₹{{ totals['Income'] }}</div>
+    </div>
+    <div class="card" style="background:#f3a6a0; color:white;  border: 2px solid #fff;">
+      <h4>Expenses</h4>
+      <div class="big-value">₹{{ totals['Expenses'] }}</div>
+    </div>
+  </div>
+
+  <!-- Category Filter -->
+  <div class="card" style="background:none; box-shadow:none; border-radius:0;margin: 0;padding-bottom: 0.4rem;">
+    <div class="filter-heading">
+      <h4 style="color:#6b7280;margin-bottom: 0;">Categories</h4>
+
+      <div class="filter-card" style="background:none; box-shadow:none; border-radius:0;">
+
+        <form method="GET" action="{{ url_for('index', sub_category=sub_category) }}">
+
+          <select name="month" onchange="this.form.submit()">
+            {% for m in months %}
+            {% set label = m | datetimeformat('%b %Y') %}
+            <option value="{{ m }}" {% if m==month_filter %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+
+        </form>
+      </div>
+    </div>
+    <div class="filter-bar">
+      <button class="filter-btn active" data-cat="All">All</button>
+      {% for cat in summary.keys() %}
+      <button class="filter-btn" data-cat="{{ cat }}">{{ cat }}</button>
+      {% endfor %}
+    </div>
+  </div>
+
+
+  <!-- Transactions -->
+  <div class="card" style="background:none; box-shadow:none; border-radius:0;padding-top: 0;">
+    {% set subcat_icons = {
+    'Food & Drinks': '🍔',
+    'Shopping': '🛍️',
+    'Personal Care': '🧴',
+    'Transport': '🚌',
+    'Loans & EMI': '🏦',
+    'Education': '🎓',
+    'Bills & Utilities': '💡',
+    'Housing': '🏠',
+    'Entertainment': '🎬',
+    'Gifts': '🎁',
+    'Others': '📦',
+    'Salary': '💵',
+    'Other Income Sources': '💴',
+    'Money Sent': '📤',
+    'Money Received': '📥',
+    'Savings': '💰',
+    'Mutual Fund': '📊',
+    'Stock': '📈',
+    'Crypto': '🪙',
+    'Forex': '💱',
+    'Property': '🏡'
+
+    } %}
+    {% for cat, items in summary.items() %}
+
+    {% for item in items %}
+
+
+   <a href="{{ url_for('dynamic_data', sub_category=item.sub_category, month=month_filter) }}" 
+   class="transaction" 
+   data-cat="{{ cat }}">
+
+      <div class="transaction-left">
+        <div class="icon">{{ subcat_icons[item.sub_category] if item.sub_category in subcat_icons else '📁' }}</div>
+        <div class="transaction-info">
+          <span class="transaction-title">{{ item.sub_category }}</span>
+          <span class="transaction-sub">{{ cat }}</span>
+        </div>
+      </div>
+      {% if item.amount != 0 %}
+      {% if cat == 'Income' %}
+      <span class="amount-pos">+ ₹{{ item.amount }}</span>
+      {% elif cat == 'Savings / Investments' %}
+      <span style="color:black; font-weight:600;">₹{{ item.amount }}</span>
+      {% else %}
+      <span class="amount-neg">- ₹{{ item.amount }}</span>
+      {% endif %}
+
+      {% else %}
+
+      {% if cat == 'Income' %}
+      <span class="amount-pos">₹{{ item.amount }}</span>
+      {% elif cat == 'Savings / Investments' %}
+      <span style="color:black; font-weight:600;">₹{{ item.amount }}</span>
+      {% else %}
+      <span class="amount-neg">₹{{ item.amount }}</span>
+      {% endif %}
+
+      {% endif %}
+
+
+    </a>
+    {% endfor %}
+    {% endfor %}
+  </div>
+</div>
+
+{% endblock %}
+
+
+
+
+
+
+
+
+
+{% block scripts %}
+<script>
+  const filterButtons = document.querySelectorAll(".filter-btn");
+  const transactions = document.querySelectorAll(".transaction");
+  const savedFilter = localStorage.getItem("activeFilter") || "All";
+
+  function applyFilter(filter) {
+    filterButtons.forEach(btn => {
+      btn.classList.toggle("active", btn.dataset.cat === filter);
+    });
+    transactions.forEach(tx => {
+      if (filter === "All" || tx.dataset.cat === filter) {
+        tx.style.display = "flex";
+      } else {
+        tx.style.display = "none";
+      }
+    });
+    localStorage.setItem("activeFilter", filter);
+  }
+
+  filterButtons.forEach(btn => {
+    btn.addEventListener("click", () => applyFilter(btn.dataset.cat));
+  });
+
+  // Apply saved filter on load
+  applyFilter(savedFilter);
+</script>
+
+{% endblock %}

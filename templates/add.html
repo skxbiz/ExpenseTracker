@@ -1,0 +1,413 @@
+{% extends "base.html" %}
+
+{% block title %} Quick Add Expense {% endblock %}
+
+{% block css %}
+
+<style>
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .bottom-navigation {
+    display: none;
+  }
+
+  .animate-fadeIn {
+    animation: fadeIn 0.25s ease forwards;
+  }
+
+  html body {
+    margin-bottom: 0;
+  }
+
+  /* html,
+  body {
+    margin: 0;
+    padding: 0;
+    font-family: Arial, sans-serif;
+    background: #f9fafb;
+    position: relative;
+    height: 100%;
+    overflow-x: hidden;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  html::-webkit-scrollbar,
+  body::-webkit-scrollbar {
+    display: none;
+  } */
+
+  .header,
+  .input-box {
+    position: fixed;
+    z-index: 100;
+    width: 100%;
+    background: #f9fafb;
+    /* box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05); */
+
+    display: flex;
+    align-items: center;
+    padding: 12px 16px;
+  }
+
+  .header {
+    top: 0;
+    justify-content: space-between;
+    padding: 20px 16px;
+    border-bottom: 2px solid #fff;
+  }
+
+  .header h2 {
+    margin: 0;
+    flex: 1;
+    text-align: center;
+    font-weight: 600;
+    font-size: 18px;
+  }
+
+  .chat-box {
+    margin-top: 3rem;
+    padding: 1rem;
+  }
+
+  .system-chat {
+    background: #f9fafb;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
+    border: 3px solid #fff;
+    border-radius: 2rem 0rem 2rem 0;
+    padding: 1rem;
+    width: 80%;
+    max-width: 320px;
+  }
+
+  .user-msg {
+    background: #7f13ec;
+    color: white;
+    padding: 8px 20px;
+    border-radius: 20px;
+    max-width: 75%;
+    font-size: 14px;
+
+  }
+
+  .flex-end {
+    display: flex;
+    justify-content: flex-end;
+  }
+
+  .flex-start {
+    display: flex;
+    justify-content: flex-start;
+  }
+
+  .flex-row {
+    display: flex;
+    align-items: center;
+  }
+
+  .flex-col {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .input-box {
+    bottom: 0;
+    border-top: 1px solid #fff;
+    padding: 12px 16px;
+  }
+
+  .input-box input {
+    flex: 1;
+    padding: 15px;
+    border: 2px solid #fff;
+    border-radius: 999px;
+    font-size: 14px;
+    outline: none;
+    background-color: #f9fafb;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  }
+
+  .input-box input:focus {
+    border: 1px solid #7f13ec;
+    box-shadow: 0 0 0 1px rgba(127, 19, 236, 0.101);
+  }
+
+  .input-box button {
+    margin-left: 8px;
+    background: #7f13ec;
+    color: white;
+    border: none;
+    padding: 10px 14px;
+    border-radius: 50%;
+    cursor: pointer;
+
+  }
+
+  .input-box button:hover {
+    background: #6900d1;
+  }
+
+  .icon-circle {
+    background: #f3e8ff;
+    padding: 6px;
+    border-radius: 50%;
+    font-size: 16px;
+  }
+
+  .txn-title {
+    font-weight: 600;
+    color: #111;
+    font-size: 14px;
+  }
+
+  .txn-sub {
+    font-weight: 500;
+    color: #444;
+    font-size: 13px;
+  }
+
+  .txn-amount {
+    font-size: 20px;
+    font-weight: bold;
+    color: #7f13ec;
+    margin: 4px 0;
+  }
+
+  .txn-desc {
+    color: #555;
+    font-size: 14px;
+  }
+
+  .txn-date {
+    color: #888;
+    font-size: 12px;
+    margin-top: 6px;
+    text-align: right;
+  }
+</style>
+{% endblock %}
+
+
+
+
+{% block content %}
+
+<!-- Header -->
+<div class="header">
+  <a href="/" style="text-decoration:none; font-size:22px; color:#444;">←</a>
+  <h2>Quick Add Expense</h2>
+  <div style="width:20px;"></div>
+</div>
+
+<!-- Chat box -->
+<div id="chat-box" class="chat-box">
+
+  {% set ns = namespace(date=None) %}
+
+
+
+
+
+  {% for txn in transactions %}
+
+
+
+
+
+  {% set txn_date = txn.date_time.split()[0] %}
+
+  {% if ns.date != txn_date %}
+
+  <h5 style="    text-align: center;color: #777;margin: 2rem 0; ">{{txn.date_time.split()[0] | format_dt}}</h5>
+
+  {% set ns.date = txn_date %} {# update last seen date #}
+  {% endif %}
+
+
+
+  <!-- {% set last = txn.date_time.split()[0] %}  {# extract only date #}
+
+    {% if last_date != txn_date %}
+        <p class="date-change-header">Hi</p>  {# show once per date #}
+        {% set last_date = txn_date %}  {# update last_date here, INSIDE the if block #}
+    {% endif %} -->
+
+
+
+
+
+
+
+
+
+  <div class="flex-col animate-fadeIn" style="margin-bottom:24px;">
+
+    <!-- User message -->
+    <div class="flex-end">
+      <div class="user-msg">{{ txn.description }}</div>
+    </div>
+
+    <!-- Bot/response card -->
+    <div class="flex-start" style="margin-top:16px;">
+      <div class="system-chat">
+        <div class="flex-row" style="justify-content: space-between; margin-bottom:8px;">
+          <div class="flex-col">
+            <div class="flex-row" style="gap:8px;">
+              <div class="icon-circle">
+                {% if txn.category == 'Income' %}💰
+                {% elif txn.category == 'Expenses' %}🛒
+                {% elif txn.category == 'Savings / Investments' %}🏦
+                {% else %}📤{% endif %}
+              </div>
+              <div class="flex-col">
+                <span class="txn-title">{{ txn.sub_category }}</span>
+                <span class="txn-sub">
+                  {% if txn.category == 'Income' %}Income
+                  {% elif txn.category == 'Expenses' %}Expenses
+                  {% elif txn.category == 'Savings / Investments' %}Savings
+                  {% else %}Other{% endif %}
+                </span>
+              </div>
+            </div>
+          </div>
+          <a href="{{ url_for('edit', txn_id=txn.id) }}" style="color:#777; font-size:14px; text-decoration:none;">✎</a>
+        </div>
+        <p class="txn-amount">₹{{ txn.amount }}</p>
+        <p class="txn-desc">{{ txn.description }}</p>
+        <p class="txn-date">{{ txn.date_time | format_dt}}</p>
+      </div>
+    </div>
+
+  </div>
+  {% endfor %}
+
+</div>
+
+<!-- Input area -->
+<form id="chat-form" class="input-box" style="display:flex; align-items:center;box-sizing: border-box;">
+  <input type="text" id="chat-input" name="text" placeholder="Enter expense details..." required>
+  <button type="submit">➤</button>
+</form>
+
+{% endblock %}
+
+
+
+
+
+
+
+
+
+{% block scripts %}
+
+<script>
+
+
+
+  window.addEventListener('load', () => {
+    const chatBox = document.getElementById('chat-box');
+    chatBox.scrollTo({
+      top: chatBox.scrollHeight,
+      behavior: 'smooth'
+    });
+  });
+
+
+
+
+
+  const chatForm = document.getElementById('chat-form');
+  const chatInput = document.getElementById('chat-input');
+  const chatBox = document.getElementById('chat-box');
+
+  function getCurrentDateTime() {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    const seconds = String(now.getSeconds()).padStart(2, '0');
+    return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+  }
+
+  chatForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const text = chatInput.value.trim();
+    if (!text) return;
+
+    // User bubble
+    const userDiv = document.createElement('div');
+    userDiv.className = "flex-end animate-fadeIn";
+    userDiv.innerHTML = `<div class="user-msg">${text}</div>`;
+    chatBox.appendChild(userDiv);
+    chatBox.scrollTo({ top: chatBox.scrollHeight, behavior: 'smooth' });
+
+    // Send to server
+    const formData = new FormData();
+    formData.append('text', text);
+    const res = await fetch('/add', { method: 'POST', body: formData });
+    const data = await res.json();
+
+    if (data.success) {
+      const txn = data.txn;
+
+      // Bot card
+      const botDiv = document.createElement('div');
+      botDiv.className = "flex-start animate-fadeIn";
+      botDiv.style.marginTop = "16px";
+      botDiv.innerHTML = `
+          <div class="system-chat">
+            <div class="flex-row" style="justify-content: space-between; margin-bottom:8px;">
+              <div class="flex-col">
+                <div class="flex-row" style="gap:8px;">
+                  <div class="icon-circle">
+                    ${txn.category === 'Income' ? '💰' :
+          txn.category === 'Expenses' ? '🛒' :
+            txn.category === 'Savings / Investments' ? '🏦' : '📤'}
+                  </div>
+                  <div class="flex-col">
+                    <span class="txn-title">${txn.sub_category}</span>
+                    <span class="txn-sub">
+                      ${txn.category === 'Income' ? 'Income' :
+          txn.category === 'Expenses' ? 'Expenses' :
+            txn.category === 'Savings / Investments' ? 'Savings' : 'Other'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+             <a href="/edit/${txn.id}" style="color:#777; font-size:14px; text-decoration:none;">✎</a>
+
+            </div>
+            <p class="txn-amount">₹${txn.amount}</p>
+            <p class="txn-desc">${txn.description}</p>
+            <p class="txn-date">${getCurrentDateTime()}</p>
+          </div>
+        `;
+      chatBox.appendChild(botDiv);
+      chatBox.scrollTo({ top: chatBox.scrollHeight, behavior: 'smooth' });
+    } else {
+      alert(data.error);
+    }
+
+    chatInput.value = '';
+  });
+
+
+
+
+
+</script>
+
+{% endblock %}

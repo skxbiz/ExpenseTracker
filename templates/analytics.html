@@ -1,0 +1,250 @@
+{% extends "base.html" %}
+
+{% block title %} Analytics {% endblock %}
+
+{% block css %}
+<style>
+    h2 {
+        text-align: center;
+        color: #000;
+        /* Black heading */
+        margin-bottom: 30px;
+        text-shadow: none;
+    }
+
+    .chart-box {
+        margin: 30px 0;
+        padding: 25px;
+        background: #f9fafb;
+        border-radius: 20px;
+        backdrop-filter: blur(12px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+        border: 2px solid #fff;
+    }
+
+    .chart-box h3 {
+        color: #000;
+        /* Black chart titles */
+        margin-bottom: 1.5rem;
+        font-size: 1.1rem;
+    }
+
+    canvas {
+        width: 100% !important;
+        max-height: 400px;
+    }
+
+    .data-display {
+        color: #000;
+        /* Black info text below charts */
+        margin-top: 10px;
+        font-size: 0.95rem;
+        line-height: 1.4rem;
+    }
+
+    @media(max-width:768px) {
+        .container {
+            margin: 20px;
+            padding: 15px;
+        }
+    }
+</style>
+{% endblock %}
+
+
+
+
+{% block content %}
+
+<div class="container">
+    <!-- Header -->
+    <div class="header">
+        <h2>Dashboard</h2>
+    </div>
+
+    <!-- Profile -->
+    <div class="profile">
+        <img src="https://cdn-icons-png.flaticon.com/512/3135/3135715.png" alt="Profile">
+        <div class="profile-info">
+            <h3>Rio Mario</h3>
+            <h5 style="margin: 0;color: #171717c7;font-weight: 300;">Financial Overview</h4>
+        </div>
+    </div>
+
+    <div class="chart-box">
+        <h3>Daily Expenses</h3>
+        <canvas id="dailyExpensesChart"></canvas>
+        <div class="data-display" id="dailyExpensesData"></div>
+    </div>
+
+    <div class="chart-box">
+        <h3>Income</h3>
+        <canvas id="monthlyIncomeChart"></canvas>
+        <div class="data-display" id="monthlyIncomeData"></div>
+    </div>
+
+    <div class="chart-box">
+        <h3>Savings / Investments</h3>
+        <canvas id="monthlySavingsChart"></canvas>
+        <div class="data-display" id="monthlySavingsData"></div>
+    </div>
+
+    <div class="chart-box">
+        <h3>Usne-Pasne</h3>
+        <canvas id="usnePasneChart"></canvas>
+        <div class="data-display" id="usnePasneData"></div>
+    </div>
+</div>
+
+
+{% endblock %}
+
+
+{% block scripts %}
+
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+
+
+<script>
+    // --- Flask Data ---
+    const expensesData = {{ expenses_data| tojson }};
+    const incomeData = {{ income_rows| tojson }};
+    const savingsData = {{ savings_rows| tojson }};
+    const upData = {{ up_rows| tojson }};
+
+    // --- Helper: Gradient ---
+    function getGradient(ctx, color1, color2) {
+        const gradient = ctx.createLinearGradient(0, 0, 0, 400);
+        gradient.addColorStop(0, color1);
+        gradient.addColorStop(1, color2);
+        return gradient;
+    }
+
+    // Function to display data in div
+    function showData(elementId, labels, datasets, index) {
+        const container = document.getElementById(elementId);
+        if (index !== null) {
+            const lines = datasets.map(ds => `${ds.label || 'Value'}: ${ds.data[index]}`);
+            container.innerHTML = labels[index] + ' → ' + lines.join(', ');
+        } else {
+            container.innerHTML = '';
+        }
+    }
+
+    // === Daily Expenses Chart ===
+    const ctxDaily = document.getElementById('dailyExpensesChart').getContext('2d');
+    const dailyLabels = Object.keys(expensesData).map(dateStr => new Date(dateStr).getDate());
+    const dailyTotals = Object.values(expensesData);
+
+    const dailyDataset = [{
+        label: 'Expenses',
+        data: dailyTotals,
+        backgroundColor: dailyTotals.map(() => getGradient(ctxDaily, 'rgba(255,99,132,0.7)', 'rgba(255,99,132,0.3)')),
+        borderRadius: 10,
+        barPercentage: 0.6,
+        categoryPercentage: 0.6
+    }];
+
+    const dailyChart = new Chart(ctxDaily, {
+        type: 'bar',
+        data: { labels: dailyLabels, datasets: dailyDataset },
+        options: {
+            responsive: true,
+            plugins: { legend: { display: false }, tooltip: { enabled: false } },
+            scales: {
+                x: { grid: { display: false, drawBorder: false }, ticks: { color: '#000', font: { size: 12 } } },
+                y: { grid: { display: false, drawBorder: false }, ticks: { color: '#000', font: { size: 12 } } }
+            },
+            onHover: (evt, elements) => {
+                showData('dailyExpensesData', dailyLabels, dailyDataset, elements[0]?.index ?? null);
+            },
+            onClick: (evt, elements) => {
+                showData('dailyExpensesData', dailyLabels, dailyDataset, elements[0]?.index ?? null);
+            }
+        }
+    });
+
+    // === Monthly Income Chart ===
+    const ctxIncome = document.getElementById('monthlyIncomeChart').getContext('2d');
+    const incomeDataset = [{
+        label: 'Income',
+        data: incomeData.map(r => r.total),
+        backgroundColor: incomeData.map(() => getGradient(ctxIncome, 'rgba(54,162,235,0.6)', 'rgba(54,162,235,0.2)')),
+        borderRadius: 12,
+        barPercentage: 0.6,
+        categoryPercentage: 0.6
+    }];
+
+    const incomeChart = new Chart(ctxIncome, {
+        type: 'bar',
+        data: { labels: incomeData.map(r => r.month), datasets: incomeDataset },
+        options: {
+            responsive: true,
+            plugins: { legend: { display: false }, tooltip: { enabled: false } },
+            scales: {
+                x: { grid: { display: false, drawBorder: false }, ticks: { color: '#000', font: { size: 12 } } },
+                y: { grid: { display: false, drawBorder: false }, ticks: { color: '#000', font: { size: 12 } } }
+            },
+            onHover: (evt, elements) => showData('monthlyIncomeData', incomeData.map(r => r.month), incomeDataset, elements[0]?.index ?? null),
+            onClick: (evt, elements) => showData('monthlyIncomeData', incomeData.map(r => r.month), incomeDataset, elements[0]?.index ?? null)
+        }
+    });
+
+    // === Monthly Savings Chart ===
+    const ctxSavings = document.getElementById('monthlySavingsChart').getContext('2d');
+    const savingsDataset = [{
+        label: 'Savings',
+        data: savingsData.map(r => r.total),
+        backgroundColor: savingsData.map(() => getGradient(ctxSavings, 'rgba(75,192,192,0.6)', 'rgba(75,192,192,0.2)')),
+        borderRadius: 12,
+        barPercentage: 0.6,
+        categoryPercentage: 0.6
+    }];
+
+    const savingsChart = new Chart(ctxSavings, {
+        type: 'bar',
+        data: { labels: savingsData.map(r => r.month), datasets: savingsDataset },
+        options: {
+            responsive: true,
+            plugins: { legend: { display: false }, tooltip: { enabled: false } },
+            scales: {
+                x: { grid: { display: false, drawBorder: false }, ticks: { color: '#000', font: { size: 12 } } },
+                y: { grid: { display: false, drawBorder: false }, ticks: { color: '#000', font: { size: 12 } } }
+            },
+            onHover: (evt, elements) => showData('monthlySavingsData', savingsData.map(r => r.month), savingsDataset, elements[0]?.index ?? null),
+            onClick: (evt, elements) => showData('monthlySavingsData', savingsData.map(r => r.month), savingsDataset, elements[0]?.index ?? null)
+        }
+    });
+
+    // === Monthly Usne-Pasne Chart ===
+    const ctxUP = document.getElementById('usnePasneChart').getContext('2d');
+    const upDatasets = [
+        { label: 'Sent', data: upData.map(r => r.sent), backgroundColor: 'rgba(255,99,132,0.8)', borderRadius: 10 },
+        { label: 'Received', data: upData.map(r => r.received), backgroundColor: 'rgba(54,162,235,0.8)', borderRadius: 10 }
+    ];
+
+    const upChart = new Chart(ctxUP, {
+        type: 'bar',
+        data: { labels: upData.map(r => r.month), datasets: upDatasets },
+        options: {
+            responsive: true,
+            plugins: { legend: { display: false }, tooltip: { enabled: false } },
+            scales: {
+                x: { grid: { display: false, drawBorder: false }, ticks: { color: '#000', font: { size: 12 } } },
+                y: { grid: { display: false, drawBorder: false }, ticks: { color: '#000', font: { size: 12 } } }
+            },
+            onHover: (evt, elements) => showData('usnePasneData', upData.map(r => r.month), upDatasets, elements[0]?.index ?? null),
+            onClick: (evt, elements) => showData('usnePasneData', upData.map(r => r.month), upDatasets, elements[0]?.index ?? null)
+        }
+    });
+</script>
+
+
+
+
+
+
+
+{% endblock %}

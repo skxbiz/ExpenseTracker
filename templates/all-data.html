@@ -1,0 +1,431 @@
+{% extends "base.html" %}
+
+{% block title %} Information {% endblock %}
+
+{% block css %}
+<style>
+    .container {
+        max-width: 420px;
+        margin: 0 auto;
+        padding: 1.5rem;
+    }
+
+    .header {
+        text-align: center;
+        margin-bottom: 2rem;
+    }
+
+    .header h2 {
+        font-size: 1rem;
+        font-weight: 500;
+    }
+
+    .profile {
+        text-align: left;
+        margin-bottom: 1.5rem;
+        display: flex;
+        align-items: center;
+        justify-content: flex-start;
+        gap: 1rem;
+    }
+
+    .profile .profile-info {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        justify-content: center;
+    }
+
+    .profile img {
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.25);
+
+        border: 4px solid white;
+    }
+
+    .profile h3 {
+        margin: 0;
+        margin-bottom: 0.1rem;
+        font-size: 1.2rem;
+        font-weight: 700;
+    }
+
+
+
+    .card {
+        background: white;
+        border-radius: 16px;
+        padding: 2rem 1rem;
+        margin-bottom: 1rem;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+
+    }
+
+    .card h4 {
+        margin: 0 0 0.5rem;
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: #ffffffad;
+    }
+
+    .big-value {
+        font-size: 1.5rem;
+        font-weight: 800;
+    }
+
+    .grid {
+        display: flex;
+        gap: 1rem;
+    }
+
+    .grid .card {
+        flex: 1;
+        text-align: left;
+    }
+
+    .income {
+        color: #22c55e;
+    }
+
+    .expenses {
+        color: #ef4444;
+    }
+
+    /* Filter bar */
+    /* Filter bar */
+
+
+    .filter-heading {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1.5rem;
+    }
+
+    .filter-heading select {
+        background: none;
+        border: none;
+    }
+
+
+    .filter-heading select:focus {
+        outline: none;
+        border: none;
+    }
+
+
+
+
+
+
+    .filter-bar {
+        display: flex;
+        gap: 0.5rem;
+        overflow-x: auto;
+        white-space: nowrap;
+        padding-bottom: 0.5rem;
+        scrollbar-width: none;
+        /* Firefox */
+    }
+
+    .filter-bar::-webkit-scrollbar {
+        display: none;
+        /* Chrome, Safari */
+    }
+
+    .filter-btn {
+        flex: 0 0 auto;
+        /* Prevent shrinking */
+        padding: 0.5rem 1rem;
+        border: 2px solid #fff;
+        border-radius: 20px;
+        font-size: 0.9rem;
+        cursor: pointer;
+        background: #f9fafb;
+        color: #374151;
+        transition: all 0.2s;
+        white-space: nowrap;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+        /* Keep text in single line */
+    }
+
+    .filter-btn.active {
+        color: white;
+        background-color: black;
+
+    }
+
+    /* Transactions */
+    .transaction {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 1rem 0;
+        border-bottom: 1px solid #f1f5f9;
+        text-decoration: none;
+        color: #000;
+    }
+
+    .transaction:last-child {
+        border-bottom: none;
+    }
+
+    .transaction-left {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        width: 100%;
+    }
+
+    .icon {
+        width: 40px;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 12px;
+        font-size: 1.2rem;
+        background: #f3f4f6;
+    }
+
+    .transaction-info {
+        display: flex;
+        flex-direction: column;
+        width: 100%;
+    }
+
+    .transaction-title {
+        font-weight: 500;
+        font-size: 0.95rem;
+    }
+
+    .transaction-sub {
+        font-size: 0.8rem;
+        color: #6b7280;
+    }
+
+    .info-header {
+        display: flex;
+        justify-content: space-between;
+        width: 100%;
+        margin-bottom: 0.2rem;
+    }
+
+    .amount-pos {
+        color: #22c55e;
+        font-weight: 600;
+    }
+
+    .amount-neg {
+        color: #ef4444;
+        font-weight: 600;
+
+    }
+
+
+    /* ######################  Search   ##################  */
+
+    .input-box {
+        border: 1px solid red;
+        background-color: #f9fafb;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+        border: 2px solid #fff;
+        border-radius: 1rem;
+        padding: 0.5rem 0.8rem;
+    }
+
+    .input-box form {
+        width: 100%;
+        display: flex;
+        background-color: #f9fafb;
+    }
+
+    .input-box input {
+        flex: 1;
+        padding: 0.5rem 0.8rem;
+        font-size: 14px;
+        outline: none;
+        width: 100%;
+        border: none;
+        background-color: #f9fafb;
+
+
+    }
+
+
+
+    .input-box button {
+        width: 2rem;
+        height: 2rem;
+        border-radius: 50%;
+        border: none;
+
+        cursor: pointer;
+        background-color: #f9fafb;
+
+    }
+
+    .input-box button:hover svg {
+        background: transparent;
+        border-radius: 50%;
+
+    }
+</style>
+{% endblock %}
+
+
+
+
+{% block content %}
+<div class="container">
+    <!-- Header -->
+    <div class="header">
+        <h2>Dashboard</h2>
+    </div>
+
+    <!-- Profile -->
+    <div class="profile">
+        <img src="https://cdn-icons-png.flaticon.com/512/3135/3135715.png" alt="Profile">
+        <div class="profile-info">
+            <h3>Rio Mario</h3>
+            <h5 style="margin: 0;color: #171717c7;font-weight: 300;">Financial Overview</h4>
+        </div>
+    </div>
+
+
+    <!-- Input area -->
+<div id="chat-form" class="input-box" style="display:flex; align-items:center;box-sizing: border-box;">
+    <form method="GET" action="{{ url_for('dynamic_data', sub_category=sub_category) }}">
+        <button type="submit" class="submit-btn">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20"
+                 fill="#666" viewBox="0 0 24 24" style=" transform: translateY(15%);">
+                <path d="M10 2a8 8 0 105.29 14.29l4.71 4.7 1.41-1.41-4.7-4.71A8 8 0 0010 2zm0 2a6 6 0 110 12 6 6 0 010-12z" />
+            </svg>
+        </button>
+
+        <input type="text" id="chat-input" name="search" placeholder="Enter expense details..."
+               value="{{ request.args.get('search', '') }}" required>
+
+        <!-- 👇 preserve the selected month -->
+        {% if month_filter %}
+        <input type="hidden" name="month" value="{{ month_filter }}">
+        {% endif %}
+    </form>
+</div>
+
+
+
+    <!-- Month Filter -->
+
+
+
+
+
+    <!-- Category Filter -->
+    <div class="card" style="background:none; box-shadow:none; border-radius:0;margin: 0;padding-bottom: 0.4rem;">
+
+
+
+        <div class="filter-heading">
+            <h4 style="color:#6b7280;margin-bottom: 0;">Categories</h4>
+
+            <div class="filter-card" style="background:none; box-shadow:none; border-radius:0;">
+
+                <form method="GET" action="{{ url_for('dynamic_data', sub_category=sub_category) }}">
+                    <select name="month" onchange="this.form.submit()">
+                        {% for m in months %}
+                        {% set label = m | datetimeformat('%b %Y') %}
+                        <option value="{{ m }}" {% if m==month_filter %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+
+                    <!-- search preserve -->
+                    {% if request.args.get('search') %}
+                    <input type="hidden" name="search" value="{{ request.args.get('search') }}">
+                    {% endif %}
+                </form>
+            </div>
+
+        </div>
+
+
+        <div class="filter-bar">
+
+            <!-- All -->
+            <a href="{{ url_for('dynamic_data', sub_category='all', month=month_filter) }}">
+                <button class="filter-btn {% if sub_category|lower == 'all' %}active{% endif %}" data-cat="All">
+                    All
+                </button>
+            </a>
+
+            <!-- Active category first -->
+            {% for cat in subcat_list %}
+            {% if cat.sub_category == sub_category %}
+            <a href="{{ url_for('dynamic_data', sub_category=cat.sub_category, month=month_filter) }}">
+                <button class="filter-btn active" data-cat="{{ cat.sub_category }}">
+                    {{ cat.sub_category }}
+                </button>
+            </a>
+            {% endif %}
+            {% endfor %}
+
+            <!-- Other categories after -->
+            {% for cat in subcat_list %}
+            {% if cat.sub_category != sub_category %}
+            <a href="{{ url_for('dynamic_data', sub_category=cat.sub_category, month=month_filter) }}">
+                <button class="filter-btn" data-cat="{{ cat.sub_category }}">
+                    {{ cat.sub_category }}
+                </button>
+            </a>
+            {% endif %}
+            {% endfor %}
+
+        </div>
+
+    </div>
+
+
+
+
+
+    <!-- Transactions -->
+    <div class="card" style="background:none; box-shadow:none; border-radius:0;padding-top: 0;">
+
+        {% if transactions %}
+        {% for data in transactions %}
+        <a href="/" class="transaction" data-cat="{{ cat }}">
+            <div class="transaction-left">
+                <div class="icon">💰</div>
+                <div class="transaction-info">
+                    <div class="info-header">
+                        <!-- {{data}} -->
+                        <span class="transaction-title"> {{ data.date_time | format_dt }}</span>
+                        {% if data.category == 'Income' %}
+                        <span class="amount-pos">+₹{{ data.amount }}</span>
+                        {% else %}
+                        <span class="amount-neg">-₹{{ data.amount }}</span>
+                        {% endif %}
+                    </div>
+
+                    <span class="transaction-sub">{{ data.description }}</span>
+                </div>
+            </div>
+
+        </a>
+        {% endfor %}
+        {% else %}
+        <p style="text-align:center; color:#777; margin-top:2rem;">No transactions
+            found for this category.</p>
+        {% endif %}
+
+
+
+
+    </div>
+</div>
+
+
+
+{% endblock %}
