@@ -333,7 +333,7 @@ def create_app():
         if not value:
             return ""
         try:
-            dt = datet tuime.strptime(value, "%Y-%m-%d %H:%M:%S")
+            dt = datetime.strptime(value, "%Y-%m-%d %H:%M:%S")
             return dt.strftime("%-d %b, %-I.%M %p")
         except:
             try:
