@@ -322,9 +322,7 @@ def create_app():
         except Exception as ex:
             app.logger.error("Analytics fetch failed: %s", ex)
             expenses_data, income_rows, savings_rows, up_rows = {}, [], [], []
-        return render_template(
-            "analytics.html"
-        )
+    return render_template("analytics.html",expenses_data,income_rows,savings_rows,up_rows)
 
     @app.route("/profile", methods=["GET"])
     def profile():
@@ -335,7 +333,7 @@ def create_app():
         if not value:
             return ""
         try:
-            dt = datetime.strptime(value, "%Y-%m-%d %H:%M:%S")
+            dt = datet tuime.strptime(value, "%Y-%m-%d %H:%M:%S")
             return dt.strftime("%-d %b, %-I.%M %p")
         except:
             try:
