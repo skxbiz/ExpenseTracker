@@ -323,11 +323,7 @@ def create_app():
             app.logger.error("Analytics fetch failed: %s", ex)
             expenses_data, income_rows, savings_rows, up_rows = {}, [], [], []
         return render_template(
-            "analytics.html",
-            expenses_data=expenses_data,
-            income_rows=income_rows,
-            savings_rows=savings_rows,
-            up_rows=up_rows
+            "analytics.html"
         )
 
     @app.route("/profile", methods=["GET"])
