@@ -296,7 +296,7 @@ def create_app():
                 GROUP BY day ORDER BY day ASC
             """, (start_of_month.strftime("%Y-%m-%d 00:00:00"), next_month.strftime("%Y-%m-%d 00:00:00")))
             expenses_rows = rows_to_dict(cur, cur.fetchall())
-            expenses_data = {row["day"]: row["total"] for row in expenses_rows}
+            expenses_data = {row["day"].isoformat(): row["total"] for row in expenses_rows}
             cur.execute("""
                 SELECT substring(date_time,1,7) as month, SUM(amount) as total
                 FROM transactions WHERE category='Income'
