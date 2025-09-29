@@ -92,57 +92,62 @@ def create_app():
 
 
     def extract_amounts(text):
+        print("data",text)
         if amount_vectorizer is None or amount_clf is None or amount_le is None:
             # Fallback to regex
             matches = re.findall(r'[\d,.]+', text)
             amounts = [float(m.replace(',', '')) for m in matches]
             return sum(amounts) if amounts else 0
         
-        X_test = amount_vectorizer.transform([text])
-        y_pred = amount_clf.predict(X_test)
+        tokens = text.split()
+        X_vect = amount_vectorizer.transform(tokens)
+        y_pred = amount_clf.predict(X_vect)
         labels = amount_le.inverse_transform(y_pred)
-        
+
         amounts = []
-        for token, label in zip(text.split(), labels):
+        for token, label in zip(tokens, labels):
             if label == "AMOUNT":
+                # Remove non-numeric characters
                 clean_token = re.sub(r'[^\d.]', '', token)
                 if clean_token:
                     amounts.append(float(clean_token))
-        return sum(amounts) if amounts else 0
+        print("Extracted amounts:", amounts)
+        if not amounts:
+            return 0
+        
+        # Sum multiple amounts if present
+        return sum(amounts)
 
 
 
 
     # ------------ Helper Functions -------------
     def classify_and_insert(user_input: str):
+        print("Classifying input:", user_input)
         # Extract amount from the user input
         amount = extract_amounts(user_input)
 
-        # Predict category and sub-category
-        if vectorizer is None or clf is None:
-            category, sub_category = "Expenses", "Others"
-        else:
-            X_test = vectorizer.transform([user_input])
-            prediction = clf.predict(X_test)[0]
-            category, sub_category = prediction.split("|")
+        X_test = vectorizer.transform([user_input])
+        prediction = clf.predict(X_test)[0]
+        category, sub_category = prediction.split("|")
 
-        conn = get_db()
-        cur = conn.cursor()
-        cur.execute("""
-            INSERT INTO transactions (category, sub_category, description, amount, date_time)
-            VALUES (?, ?, ?, ?, ?)
-        """, (category, sub_category, user_input, amount, datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
-        txn_id = cur.lastrowid
-        conn.commit()
-        conn.close()
+        print(f"Predicted Category: {category}, Sub-category: {sub_category}, Amount: {amount}")
+        try:
+            conn = get_db()
+            cur = conn.cursor()
+            cur.execute("""
+                INSERT INTO transactions (category, sub_category, description, amount, date_time)
+                VALUES (?, ?, ?, ?, ?)
+            """, (category, sub_category, user_input, amount, datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
+            
+            conn.commit()
+            conn.close()
+        except Exception as ex:
+            print("DB Insert failed:", ex)
+        # print(f"Inserted transaction ID: {txn_id}")
 
-        return {
-            "id": txn_id,
-            "category": category,
-            "sub_category": sub_category,
-            "amount": amount,
-            "description": user_input
-        }
+        return {"category": category, "sub_category": sub_category, "amount": amount, "description": user_input}
+
 
     # ------------ Routes ----------------------
 
@@ -200,6 +205,7 @@ def create_app():
     @app.route("/add", methods=["GET", "POST"])
     def add_chat():
         if request.method == "POST":
+            print("Received POST request with form data:")
             text = request.form.get("text")
             txn = classify_and_insert(text)
             if txn:
