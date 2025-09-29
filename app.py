@@ -92,18 +92,28 @@ def create_app():
     def extract_amount(text: str):
         """
         Extracts amounts using the trained amount_extractor model.
-        Returns sum if multiple amounts are present.
+        If ML model fails, fallback to regex.
+        Returns sum if multiple amounts are present. Returns 0 if no amount found.
         """
-        if amount_vectorizer is None or amount_clf is None or amount_le is None:
-            return None
-        tokens = text.split()
-        X_tokens = amount_vectorizer.transform(tokens)
-        preds = amount_clf.predict(X_tokens)
-        decoded = amount_le.inverse_transform(preds)
-        amounts = [float(t) for t, label in zip(tokens, decoded) if label == "AMOUNT"]
-        if not amounts:
-            return None
-        return sum(amounts)
+        amounts = []
+
+        # ML-based extraction
+        if amount_vectorizer and amount_clf and amount_le:
+            tokens = text.split()
+            try:
+                X_tokens = amount_vectorizer.transform(tokens)
+                preds = amount_clf.predict(X_tokens)
+                decoded = amount_le.inverse_transform(preds)
+                amounts += [float(t) for t, label in zip(tokens, decoded) if label == "AMOUNT"]
+            except Exception as ex:
+                app.logger.warning(f"Amount ML model failed: {ex}")
+
+        # Fallback regex extraction (handles numbers like 100, 100.50, 1,000, Rs.500)
+        regex_matches = re.findall(r'\d{1,3}(?:,\d{3})*(?:\.\d{1,2})?|\d+(?:\.\d{1,2})?', text.replace(',', ''))
+        amounts += [float(m) for m in regex_matches if m]
+
+        return sum(amounts) if amounts else 0
+
 
     # ------------- Helper Functions -------------
     def classify_and_insert(user_input: str):
