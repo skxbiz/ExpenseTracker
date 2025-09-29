@@ -64,7 +64,6 @@ def create_app():
 
     init_db()
 
-    # ------------- ML Models -----------------
     try:
         vectorizer, clf, classes = joblib.load("money_ai_model.pkl")
     except Exception as ex:
@@ -77,7 +76,9 @@ def create_app():
         app.logger.error("Amount extractor model loading failed: %s", ex)
         amount_vectorizer = amount_clf = amount_le = None
 
-    # ------------- Categories -------------
+
+
+    # ------------- Categories ------------
     CATEGORIES = {
         "Income": ["Salary", "Other Income Sources"],
         "Expenses": [
@@ -88,79 +89,66 @@ def create_app():
         "Savings / Investments": ["Savings", "Mutual Fund", "Stock", "Crypto", "Forex", "Property"]
     }
 
-    # ------------- Amount Extractor -------------
-    def extract_amount(text: str):
-        """
-        Extracts amounts using the trained amount_extractor model.
-        If ML model fails, fallback to regex.
-        Returns sum if multiple amounts are present. Returns 0 if no amount found.
-        """
-        amounts = []
-
-        # ML-based extraction
-        if amount_vectorizer and amount_clf and amount_le:
-            tokens = text.split()
-            try:
-                X_tokens = amount_vectorizer.transform(tokens)
-                preds = amount_clf.predict(X_tokens)
-                decoded = amount_le.inverse_transform(preds)
-                amounts += [float(t) for t, label in zip(tokens, decoded) if label == "AMOUNT"]
-            except Exception as ex:
-                app.logger.warning(f"Amount ML model failed: {ex}")
-
-        # Fallback regex extraction (handles numbers like 100, 100.50, 1,000, Rs.500)
-        regex_matches = re.findall(r'\d{1,3}(?:,\d{3})*(?:\.\d{1,2})?|\d+(?:\.\d{1,2})?', text.replace(',', ''))
-        amounts += [float(m) for m in regex_matches if m]
-
-        return sum(amounts) if amounts else 0
 
 
-    # ------------- Helper Functions -------------
+    def extract_amounts(sentence):
+    tokens = sentence.split()
+    X_vect = vectorizer.transform(tokens)
+    y_pred = clf.predict(X_vect)
+    labels = le.inverse_transform(y_pred)
+
+    amounts = []
+    for token, label in zip(tokens, labels):
+        if label == "AMOUNT":
+            # Remove non-numeric characters
+            clean_token = re.sub(r'[^\d.]', '', token)
+            if clean_token:
+                amounts.append(float(clean_token))
+    
+    if not amounts:
+        return 0
+    
+    # Sum multiple amounts if present
+    return sum(amounts)
+
+
+
+    # ------------ Helper Functions -------------
     def classify_and_insert(user_input: str):
-        if clf is None or vectorizer is None:
-            flash("AI Model not available", "danger")
-            return None
+        # if clf is None or vectorizer is None:
+        #     flash("AI Model not available", "danger")
+        #     return None
+        # amount_match = re.search(r"(\d+(\.\d{1,2})?)", user_input)
+        # if not amount_match:
+        #     return None
 
-        # Use ML model to extract amount
-        amount = extract_amount(user_input)
-        if amount is None:
-            flash("No amount found in input", "warning")
-            return None
-
-        # Predict category & sub-category
+        amount = extract_amounts(s) 
         X_test = vectorizer.transform([user_input])
         prediction = clf.predict(X_test)[0]
         category, sub_category = prediction.split("|")
-
         try:
             conn = get_db()
             cur = conn.cursor()
             cur.execute("""
                 INSERT INTO transactions (category, sub_category, description, amount, date_time)
-                VALUES (%s, %s, %s, %s, %s) RETURNING id
+                VALUES (?, ?, ?, ?, ?)
             """, (category, sub_category, user_input, amount, datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
-            txn_id = cur.fetchone()[0]
+            txn_id = cur.lastrowid
             conn.commit()
-            cur.close()
             conn.close()
-            return {
-                "id": txn_id,
-                "category": category,
-                "sub_category": sub_category,
-                "amount": amount,
-                "description": user_input
-            }
+            return {"id": txn_id, "category": category, "sub_category": sub_category, "amount": amount, "description": user_input}
         except Exception as ex:
             app.logger.error("Insert transaction failed: %s", ex)
             flash("Transaction could not be saved!", "danger")
             return None
 
     # ------------ Routes ----------------------
+
+    # Utility for converting result
     def rows_to_dict(cur, rows):
         desc = [d[0] for d in cur.description]
         return [dict(zip(desc, row)) for row in rows]
 
-    # ----------------- ROUTES -----------------
     @app.route("/")
     def index():
         try:
@@ -168,13 +156,13 @@ def create_app():
             cur = conn.cursor()
             now = datetime.now()
             current_year = now.year
-            months = [(now - relativedelta(months=i)).strftime("%Y-%m") for i in range(12)]
+            months = [ (now-relativedelta(months=i)).strftime("%Y-%m") for i in range(12) ]
             month_filter = request.args.get("month", "").strip()
             if not month_filter or month_filter not in months:
                 month_filter = now.strftime("%Y-%m")
             year, month = map(int, month_filter.split("-"))
             start_of_month = datetime(year, month, 1)
-            next_month = datetime(year+1, 1, 1) if month == 12 else datetime(year, month+1, 1)
+            next_month = datetime(year+1, 1, 1) if month==12 else datetime(year, month+1, 1)
             cur.execute("""
                 SELECT category, sub_category, SUM(amount) as total
                 FROM transactions
@@ -188,10 +176,11 @@ def create_app():
             networth = networth_row[0] or 0
             cur.close()
             conn.close()
-
             summary = {}
             for cat, subs in CATEGORIES.items():
-                summary[cat] = [{"sub_category": sub, "amount": 0} for sub in subs]
+                summary[cat] = []
+                for sub in subs:
+                    summary[cat].append({"sub_category": sub, "amount": 0})
             for row in data:
                 cat, sub, amt = row["category"], row["sub_category"], row["total"]
                 if cat not in summary:
@@ -231,7 +220,6 @@ def create_app():
             flash("Could not fetch transactions", "danger")
             txns = []
         return render_template("add.html", transactions=txns)
-
 
     @app.route("/subcategory/<category>/<sub_category>")
     def subcategory_view(category, sub_category):
