@@ -359,6 +359,7 @@
     formData.append('text', text);
     const res = await fetch('/add', { method: 'POST', body: formData });
     const data = await res.json();
+    console.log("data",data)
 
     if (data.success) {
       const txn = data.txn;
