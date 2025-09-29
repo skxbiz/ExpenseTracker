@@ -91,56 +91,74 @@ def create_app():
 
 
 
-    def extract_amounts(sentence):
-        tokens = sentence.split()
-        X_vect = vectorizer.transform(tokens)
-        y_pred = clf.predict(X_vect)
-        labels = le.inverse_transform(y_pred)
-
+    def extract_amounts(text):
+        if amount_vectorizer is None or amount_clf is None or amount_le is None:
+            # Fallback to regex
+            matches = re.findall(r'[\d,.]+', text)
+            amounts = [float(m.replace(',', '')) for m in matches]
+            return sum(amounts) if amounts else 0
+        
+        X_test = amount_vectorizer.transform([text])
+        y_pred = amount_clf.predict(X_test)
+        labels = amount_le.inverse_transform(y_pred)
+        
         amounts = []
-        for token, label in zip(tokens, labels):
+        for token, label in zip(text.split(), labels):
             if label == "AMOUNT":
-                # Remove non-numeric characters
                 clean_token = re.sub(r'[^\d.]', '', token)
                 if clean_token:
                     amounts.append(float(clean_token))
-        
-        if not amounts:
-            return 0
-        
-        # Sum multiple amounts if present
-        return sum(amounts)
+        return sum(amounts) if amounts else 0
+
 
 
 
     # ------------ Helper Functions -------------
     def classify_and_insert(user_input: str):
-        # if clf is None or vectorizer is None:
-        #     flash("AI Model not available", "danger")
-        #     return None
-        # amount_match = re.search(r"(\d+(\.\d{1,2})?)", user_input)
-        # if not amount_match:
-        #     return None
+        if vectorizer is None or clf is None:
+            flash("AI Model not available", "danger")
+            return None
 
-        amount = extract_amounts(s) 
+        # Extract amount from the user input
+        amount = extract_amounts(user_input)
+
+        # Predict category and sub-category
         X_test = vectorizer.transform([user_input])
         prediction = clf.predict(X_test)[0]
         category, sub_category = prediction.split("|")
+
         try:
             conn = get_db()
             cur = conn.cursor()
+            # Use %s placeholders for PostgreSQL, not ?
             cur.execute("""
                 INSERT INTO transactions (category, sub_category, description, amount, date_time)
-                VALUES (?, ?, ?, ?, ?)
-            """, (category, sub_category, user_input, amount, datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
-            txn_id = cur.lastrowid
+                VALUES (%s, %s, %s, %s, %s)
+                RETURNING id
+            """, (
+                category,
+                sub_category,
+                user_input,
+                amount,
+                datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            ))
+            txn_id = cur.fetchone()[0]  # Get the inserted row's ID
             conn.commit()
+            cur.close()
             conn.close()
-            return {"id": txn_id, "category": category, "sub_category": sub_category, "amount": amount, "description": user_input}
+            return {
+                "id": txn_id,
+                "category": category,
+                "sub_category": sub_category,
+                "amount": amount,
+                "description": user_input
+            }
+
         except Exception as ex:
             app.logger.error("Insert transaction failed: %s", ex)
             flash("Transaction could not be saved!", "danger")
             return None
+
 
     # ------------ Routes ----------------------
 
