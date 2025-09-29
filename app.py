@@ -127,38 +127,16 @@ def create_app():
         prediction = clf.predict(X_test)[0]
         category, sub_category = prediction.split("|")
 
-        try:
-            conn = get_db()
-            cur = conn.cursor()
-            # Use %s placeholders for PostgreSQL, not ?
-            cur.execute("""
-                INSERT INTO transactions (category, sub_category, description, amount, date_time)
-                VALUES (%s, %s, %s, %s, %s)
-                RETURNING id
-            """, (
-                category,
-                sub_category,
-                user_input,
-                amount,
-                datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            ))
-            txn_id = cur.fetchone()[0]  # Get the inserted row's ID
-            conn.commit()
-            cur.close()
-            conn.close()
-            return {
-                "id": txn_id,
-                "category": category,
-                "sub_category": sub_category,
-                "amount": amount,
-                "description": user_input
-            }
-
-        except Exception as ex:
-            app.logger.error("Insert transaction failed: %s", ex)
-            flash("Transaction could not be saved!", "danger")
-            return None
-
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute("""
+            INSERT INTO transactions (category, sub_category, description, amount, date_time)
+            VALUES (?, ?, ?, ?, ?)
+        """, (category, sub_category, user_input, amount, datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
+        txn_id = cur.lastrowid
+        conn.commit()
+        conn.close()
+        return {"id": txn_id, "category": category, "sub_category": sub_category, "amount": amount, "description": user_input}
 
     # ------------ Routes ----------------------
 
