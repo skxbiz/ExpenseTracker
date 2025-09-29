@@ -92,24 +92,24 @@ def create_app():
 
 
     def extract_amounts(sentence):
-    tokens = sentence.split()
-    X_vect = vectorizer.transform(tokens)
-    y_pred = clf.predict(X_vect)
-    labels = le.inverse_transform(y_pred)
+        tokens = sentence.split()
+        X_vect = vectorizer.transform(tokens)
+        y_pred = clf.predict(X_vect)
+        labels = le.inverse_transform(y_pred)
 
-    amounts = []
-    for token, label in zip(tokens, labels):
-        if label == "AMOUNT":
-            # Remove non-numeric characters
-            clean_token = re.sub(r'[^\d.]', '', token)
-            if clean_token:
-                amounts.append(float(clean_token))
-    
-    if not amounts:
-        return 0
-    
-    # Sum multiple amounts if present
-    return sum(amounts)
+        amounts = []
+        for token, label in zip(tokens, labels):
+            if label == "AMOUNT":
+                # Remove non-numeric characters
+                clean_token = re.sub(r'[^\d.]', '', token)
+                if clean_token:
+                    amounts.append(float(clean_token))
+        
+        if not amounts:
+            return 0
+        
+        # Sum multiple amounts if present
+        return sum(amounts)
 
 
 
