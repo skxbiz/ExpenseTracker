@@ -115,17 +115,16 @@ def create_app():
 
     # ------------ Helper Functions -------------
     def classify_and_insert(user_input: str):
-        if vectorizer is None or clf is None:
-            flash("AI Model not available", "danger")
-            return None
-
         # Extract amount from the user input
         amount = extract_amounts(user_input)
 
         # Predict category and sub-category
-        X_test = vectorizer.transform([user_input])
-        prediction = clf.predict(X_test)[0]
-        category, sub_category = prediction.split("|")
+        if vectorizer is None or clf is None:
+            category, sub_category = "Expenses", "Others"
+        else:
+            X_test = vectorizer.transform([user_input])
+            prediction = clf.predict(X_test)[0]
+            category, sub_category = prediction.split("|")
 
         conn = get_db()
         cur = conn.cursor()
@@ -136,7 +135,14 @@ def create_app():
         txn_id = cur.lastrowid
         conn.commit()
         conn.close()
-        return {"id": txn_id, "category": category, "sub_category": sub_category, "amount": amount, "description": user_input}
+
+        return {
+            "id": txn_id,
+            "category": category,
+            "sub_category": sub_category,
+            "amount": amount,
+            "description": user_input
+        }
 
     # ------------ Routes ----------------------
 
