@@ -64,13 +64,20 @@ def create_app():
 
     init_db()
 
+    # ------------- ML Models -----------------
     try:
         vectorizer, clf, classes = joblib.load("money_ai_model.pkl")
     except Exception as ex:
         app.logger.error("AI model loading failed: %s", ex)
         vectorizer = clf = classes = None
 
-    # ------------- Categories ------------
+    try:
+        amount_vectorizer, amount_clf, amount_le = joblib.load("amount_extractor.pkl")
+    except Exception as ex:
+        app.logger.error("Amount extractor model loading failed: %s", ex)
+        amount_vectorizer = amount_clf = amount_le = None
+
+    # ------------- Categories -------------
     CATEGORIES = {
         "Income": ["Salary", "Other Income Sources"],
         "Expenses": [
@@ -81,18 +88,40 @@ def create_app():
         "Savings / Investments": ["Savings", "Mutual Fund", "Stock", "Crypto", "Forex", "Property"]
     }
 
-    # ------------ Helper Functions -------------
+    # ------------- Amount Extractor -------------
+    def extract_amount(text: str):
+        """
+        Extracts amounts using the trained amount_extractor model.
+        Returns sum if multiple amounts are present.
+        """
+        if amount_vectorizer is None or amount_clf is None or amount_le is None:
+            return None
+        tokens = text.split()
+        X_tokens = amount_vectorizer.transform(tokens)
+        preds = amount_clf.predict(X_tokens)
+        decoded = amount_le.inverse_transform(preds)
+        amounts = [float(t) for t, label in zip(tokens, decoded) if label == "AMOUNT"]
+        if not amounts:
+            return None
+        return sum(amounts)
+
+    # ------------- Helper Functions -------------
     def classify_and_insert(user_input: str):
         if clf is None or vectorizer is None:
             flash("AI Model not available", "danger")
             return None
-        amount_match = re.search(r"(\d+(\.\d{1,2})?)", user_input)
-        if not amount_match:
+
+        # Use ML model to extract amount
+        amount = extract_amount(user_input)
+        if amount is None:
+            flash("No amount found in input", "warning")
             return None
-        amount = float(amount_match.group(1))
+
+        # Predict category & sub-category
         X_test = vectorizer.transform([user_input])
         prediction = clf.predict(X_test)[0]
         category, sub_category = prediction.split("|")
+
         try:
             conn = get_db()
             cur = conn.cursor()
@@ -104,19 +133,24 @@ def create_app():
             conn.commit()
             cur.close()
             conn.close()
-            return {"id": txn_id, "category": category, "sub_category": sub_category, "amount": amount, "description": user_input}
+            return {
+                "id": txn_id,
+                "category": category,
+                "sub_category": sub_category,
+                "amount": amount,
+                "description": user_input
+            }
         except Exception as ex:
             app.logger.error("Insert transaction failed: %s", ex)
             flash("Transaction could not be saved!", "danger")
             return None
 
     # ------------ Routes ----------------------
-
-    # Utility for converting result
     def rows_to_dict(cur, rows):
         desc = [d[0] for d in cur.description]
         return [dict(zip(desc, row)) for row in rows]
 
+    # ----------------- ROUTES -----------------
     @app.route("/")
     def index():
         try:
@@ -124,13 +158,13 @@ def create_app():
             cur = conn.cursor()
             now = datetime.now()
             current_year = now.year
-            months = [ (now-relativedelta(months=i)).strftime("%Y-%m") for i in range(12) ]
+            months = [(now - relativedelta(months=i)).strftime("%Y-%m") for i in range(12)]
             month_filter = request.args.get("month", "").strip()
             if not month_filter or month_filter not in months:
                 month_filter = now.strftime("%Y-%m")
             year, month = map(int, month_filter.split("-"))
             start_of_month = datetime(year, month, 1)
-            next_month = datetime(year+1, 1, 1) if month==12 else datetime(year, month+1, 1)
+            next_month = datetime(year+1, 1, 1) if month == 12 else datetime(year, month+1, 1)
             cur.execute("""
                 SELECT category, sub_category, SUM(amount) as total
                 FROM transactions
@@ -144,11 +178,10 @@ def create_app():
             networth = networth_row[0] or 0
             cur.close()
             conn.close()
+
             summary = {}
             for cat, subs in CATEGORIES.items():
-                summary[cat] = []
-                for sub in subs:
-                    summary[cat].append({"sub_category": sub, "amount": 0})
+                summary[cat] = [{"sub_category": sub, "amount": 0} for sub in subs]
             for row in data:
                 cat, sub, amt = row["category"], row["sub_category"], row["total"]
                 if cat not in summary:
@@ -188,6 +221,7 @@ def create_app():
             flash("Could not fetch transactions", "danger")
             txns = []
         return render_template("add.html", transactions=txns)
+
 
     @app.route("/subcategory/<category>/<sub_category>")
     def subcategory_view(category, sub_category):
