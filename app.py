@@ -137,10 +137,11 @@ def create_app():
             cur = conn.cursor()
             cur.execute("""
                 INSERT INTO transactions (category, sub_category, description, amount, date_time)
-                VALUES (?, ?, ?, ?, ?)
+                VALUES (%s, %s, %s, %s, %s)
             """, (category, sub_category, user_input, amount, datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
             
             conn.commit()
+            cur.close()
             conn.close()
         except Exception as ex:
             print("DB Insert failed:", ex)
