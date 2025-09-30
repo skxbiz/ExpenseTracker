@@ -251,6 +251,93 @@
     {% block scripts %}
 
     {% endblock %}
+
+    
+
+    
+{% with messages = get_flashed_messages(with_categories=true) %}
+{% if messages %}
+<div id="flash-messages" style="
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    backdrop-filter: blur(5px);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    z-index: 9999;
+">
+  {% for category, message in messages %}
+  <div class="flash {{ category }}" style="
+      padding: 32px 24px;
+      border-radius: 16px;
+      background-color: #f9fafb;
+      border: 2px solid #fff;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+      text-align: center;
+      opacity: 0;
+      transform: translateY(-20px);
+      transition: opacity 0.5s ease, transform 0.5s ease;
+  ">
+    <div style="
+        width: 60px;
+        height: 60px;
+        margin: 0 auto 16px auto;
+        border-radius: 50%;
+        background-color: #34d399;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 28px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    ">
+      {% if category=='success' %}✅{% else %}❌{% endif %}
+    </div>
+    <div style="font-size: 20px; font-weight: 700; margin-bottom: 8px;">{{ category|capitalize }}</div>
+    <div style="font-size: 14px; color: #4b5563;">{{ message }}</div>
+  </div>
+  {% endfor %}
+</div>
+
+<script>
+  const flashes = document.querySelectorAll('#flash-messages .flash');
+
+  flashes.forEach((flash, index) => {
+    // Animate in
+    setTimeout(() => {
+      flash.style.opacity = '1';
+      flash.style.transform = 'translateY(0)';
+    }, index * 100);
+
+    // Auto-hide after 3 seconds
+    setTimeout(() => {
+      flash.style.opacity = '0';
+      flash.style.transform = 'translateY(-20px)';
+
+      // Remove flash after animation
+      setTimeout(() => {
+        flash.remove();
+
+        // If no more flashes left, remove parent overlay
+        const parent = document.getElementById('flash-messages');
+        if (parent && parent.children.length === 0) {
+          parent.remove();
+        }
+
+      }, 500);
+    }, 1100 + index * 100);
+  });
+</script>
+
+{% endif %}
+{% endwith %}
+
+
+    
 </body>
 
 </html>

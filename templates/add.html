@@ -272,10 +272,7 @@
               <div class="flex-col">
                 <span class="txn-title">{{ txn.sub_category }}</span>
                 <span class="txn-sub">
-                  {% if txn.category == 'Income' %}Income
-                  {% elif txn.category == 'Expenses' %}Expenses
-                  {% elif txn.category == 'Savings / Investments' %}Savings
-                  {% else %}Other{% endif %}
+                  {{txn.category}}
                 </span>
               </div>
             </div>
@@ -359,8 +356,6 @@
     formData.append('text', text);
     const res = await fetch('/add', { method: 'POST', body: formData });
     const data = await res.json();
-    console.log("data",data)
-
     if (data.success) {
       const txn = data.txn;
 
@@ -369,7 +364,7 @@
       botDiv.className = "flex-start animate-fadeIn";
       botDiv.style.marginTop = "16px";
       botDiv.innerHTML = `
-          <div class="system-chat">
+          <div class="system-chat" style="margin-top: 16px;">
             <div class="flex-row" style="justify-content: space-between; margin-bottom:8px;">
               <div class="flex-col">
                 <div class="flex-row" style="gap:8px;">
@@ -381,9 +376,7 @@
                   <div class="flex-col">
                     <span class="txn-title">${txn.sub_category}</span>
                     <span class="txn-sub">
-                      ${txn.category === 'Income' ? 'Income' :
-          txn.category === 'Expenses' ? 'Expenses' :
-            txn.category === 'Savings / Investments' ? 'Savings' : 'Other'}
+                      ${txn.category}
                     </span>
                   </div>
                 </div>

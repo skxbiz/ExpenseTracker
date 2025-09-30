@@ -45,6 +45,8 @@ def create_app():
         try:
             conn = get_db()
             cur = conn.cursor()
+            
+            # Create table if not exists
             cur.execute("""
                 CREATE TABLE IF NOT EXISTS transactions (
                     id SERIAL PRIMARY KEY,
@@ -56,11 +58,24 @@ def create_app():
                 )
             """)
             conn.commit()
+
+            # Sync sequence with max(id)
+            cur.execute("""
+                SELECT setval(
+                    pg_get_serial_sequence('transactions', 'id'),
+                    COALESCE((SELECT MAX(id) FROM transactions), 0) + 1,
+                    true
+                )
+            """)
+            conn.commit()
+
             cur.close()
             conn.close()
+            print("✅ DB initialized and sequence synced")
         except Exception as ex:
             app.logger.error("DB Initialization failed: %s", ex)
             abort(500)
+
 
     init_db()
 
@@ -92,7 +107,6 @@ def create_app():
 
 
     def extract_amounts(text):
-        print("data",text)
         if amount_vectorizer is None or amount_clf is None or amount_le is None:
             # Fallback to regex
             matches = re.findall(r'[\d,.]+', text)
@@ -111,7 +125,6 @@ def create_app():
                 clean_token = re.sub(r'[^\d.]', '', token)
                 if clean_token:
                     amounts.append(float(clean_token))
-        print("Extracted amounts:", amounts)
         if not amounts:
             return 0
         
@@ -123,15 +136,13 @@ def create_app():
 
     # ------------ Helper Functions -------------
     def classify_and_insert(user_input: str):
-        print("Classifying input:", user_input)
-        # Extract amount from the user input
         amount = extract_amounts(user_input)
 
         X_test = vectorizer.transform([user_input])
         prediction = clf.predict(X_test)[0]
         category, sub_category = prediction.split("|")
 
-        print(f"Predicted Category: {category}, Sub-category: {sub_category}, Amount: {amount}")
+        
         try:
             conn = get_db()
             cur = conn.cursor()
@@ -139,15 +150,21 @@ def create_app():
                 INSERT INTO transactions (category, sub_category, description, amount, date_time)
                 VALUES (%s, %s, %s, %s, %s)
             """, (category, sub_category, user_input, amount, datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
-            
+
+
+
+            cur.execute("SELECT * FROM transactions ORDER BY id DESC LIMIT 1")
+            txn_id = cur.fetchone()[0]
             conn.commit()
             cur.close()
             conn.close()
+            
+            return {"id": txn_id, "category": category, "sub_category": sub_category, "amount": amount, "description": user_input}
         except Exception as ex:
             print("DB Insert failed:", ex)
-        # print(f"Inserted transaction ID: {txn_id}")
+            return None
 
-        return {"category": category, "sub_category": sub_category, "amount": amount, "description": user_input}
+        
 
 
     # ------------ Routes ----------------------
@@ -206,7 +223,6 @@ def create_app():
     @app.route("/add", methods=["GET", "POST"])
     def add_chat():
         if request.method == "POST":
-            print("Received POST request with form data:")
             text = request.form.get("text")
             txn = classify_and_insert(text)
             if txn:
@@ -280,6 +296,22 @@ def create_app():
             app.logger.error("Edit fetch/update failed: %s", ex)
             abort(500)
         return render_template("edit.html", txn=txn, categories=CATEGORIES)
+
+    
+    @app.route("/delete/<int:txn_id>", methods=["POST"])
+    def delete_transaction(txn_id):
+        try:
+            conn = get_db()
+            cur = conn.cursor()
+            cur.execute("DELETE FROM transactions WHERE id=%s", (txn_id,))
+            conn.commit()
+            cur.close()
+            conn.close()
+            flash("Transaction deleted successfully!", "success")
+        except Exception as ex:
+            app.logger.error("Delete transaction failed: %s", ex)
+            flash("Could not delete transaction!", "danger")
+        return redirect(url_for("add_chat"))
 
     @app.route("/data/<sub_category>")
     def dynamic_data(sub_category):
