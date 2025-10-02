@@ -23,7 +23,6 @@
         body {
             height: 100%;
             margin: 0;
-            padding-bottom: 2rem;
             overflow-y: scroll;
             /* keep scrolling */
             -ms-overflow-style: none;
@@ -37,6 +36,9 @@
 
         }
 
+        .page-body{
+            padding-bottom: 2rem;
+        }
 
         html::-webkit-scrollbar,
         body::-webkit-scrollbar {
@@ -164,6 +166,10 @@
             cursor: pointer;
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
         }
+
+        .main-section {
+            margin: 2rem 0;
+        }
     </style>
 
     {% block css %}
@@ -171,10 +177,10 @@
     {% endblock %}
 </head>
 
-<body>
+<body class="page-body">
 
 
-    <section style="margin: 2rem 0;">
+    <section class="main-section">
         {% block content %}
 
         {% endblock %}
@@ -186,7 +192,7 @@
 
     <!-- Bottom Navigation -->
 
-    <section class="bottom-navigation">
+    <section class="bottom-navigation" id="bottom-navigation">
         <div class="bottom-nav">
             <a href="{{ url_for('index') }}" class="nav-item {% if request.endpoint=='index' %}active{% endif %}">
                 <span class="icon">

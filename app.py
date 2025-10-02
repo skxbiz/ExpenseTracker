@@ -1,350 +1,213 @@
-import os
-import re
-import pandas as pd
-import joblib
-import psycopg2
-from flask import Flask, render_template, request, redirect, url_for, jsonify, send_file, flash, abort
-from werkzeug.utils import secure_filename
 from datetime import datetime
-from dateutil.relativedelta import relativedelta
+import os
+from flask import Flask, redirect, render_template, request, flash, abort, current_app,jsonify, send_file, url_for, session
+from flask.views import MethodView
+from werkzeug.security import generate_password_hash, check_password_hash
+from services.db import get_db, init_db
+from services.utils import classify_and_insert
+from services.dashboard_service import DashboardService
+from services.add_service import AddService
+from services.subcategory_service import SubcategoryService
+from services.edit_service import EditService
+from services.delete_service import DeleteService 
+from services.data_service import DataService
+from services.analytics_service import AnalyticsService
+from services.backup_service import BackupService
+from werkzeug.utils import secure_filename
 
-SECRET_KEY = os.environ.get('FLASK_SECRET', os.urandom(24))
+
+from services.utils import CATEGORIES
+import traceback
+from functools import wraps
+
+
+# -------------------- Flask App --------------------
+app = Flask(__name__)
+app.secret_key = os.environ.get('FLASK_SECRET', os.urandom(24))
 UPLOAD_FOLDER = os.environ.get('UPLOAD_FOLDER', 'uploads')
-DATABASE_URL = os.environ.get('DATABASE_URL')
+app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-def create_app():
-    app = Flask(__name__)
-    app.secret_key = SECRET_KEY
-    app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
+# Decorator to require login for routes
+def login_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if "user_id" not in session:
+            flash("Please log in to access this page.", "danger")
+            return redirect(url_for("login"))
+        return f(*args, **kwargs)
+    return decorated_function
 
-    # ------------- Error Handlers -------------
-    @app.errorhandler(404)
-    def not_found(e):
-        return render_template('404.html'), 404
+# Apply login_required to all routes
+@app.before_request
+def require_login():
+    excluded_routes = ["login", "signup", "static"]
+    current_app.logger.debug(f"Request endpoint: {request.endpoint}")
+    if request.endpoint in excluded_routes or request.endpoint is None:
+        current_app.logger.debug("Access allowed: Excluded route or static file.")
+        return  # Allow access to excluded routes and static files
+    if "user_id" not in session:
+        current_app.logger.debug("Access denied: User not logged in.")
+        return redirect(url_for("login"))
 
-    @app.errorhandler(500)
-    def internal_error(e):
-        return render_template('500.html'), 500
+# -------------------- Error Handlers --------------------
+@app.errorhandler(404)
+def not_found(e):
+    return render_template('404.html'), 404
 
-    @app.errorhandler(Exception)
-    def handle_any_error(e):
-        flash("An unexpected error occurred.", "danger")
-        return render_template('500.html'), 500
+@app.errorhandler(500)
+def internal_error(e):
+    current_app.logger.error("Internal Server Error: %s", traceback.format_exc())
+    return render_template('500.html'), 500
 
-    # ------------- DB Helper -----------------
-    def get_db():
-        try:
-            conn = psycopg2.connect(DATABASE_URL, sslmode="require")
-            return conn
-        except Exception as ex:
-            app.logger.error("DB Connection Failed: %s", ex)
-            abort(500)
+@app.errorhandler(Exception)
+def handle_any_error(e):
+    current_app.logger.error("Unhandled Exception: %s", traceback.format_exc())
+    flash("An unexpected error occurred.", "danger")
+    return render_template('500.html'), 500
 
-    def init_db():
-        try:
-            conn = get_db()
-            cur = conn.cursor()
-            
-            # Create table if not exists
-            cur.execute("""
-                CREATE TABLE IF NOT EXISTS transactions (
-                    id SERIAL PRIMARY KEY,
-                    category TEXT,
-                    sub_category TEXT,
-                    description TEXT,
-                    amount REAL,
-                    date_time TEXT
-                )
-            """)
-            conn.commit()
+# -------------------- Initialize DB --------------------
 
-            # Sync sequence with max(id)
-            cur.execute("""
-                SELECT setval(
-                    pg_get_serial_sequence('transactions', 'id'),
-                    COALESCE((SELECT MAX(id) FROM transactions), 0) + 1,
-                    true
-                )
-            """)
-            conn.commit()
-
-            cur.close()
-            conn.close()
-            print("✅ DB initialized and sequence synced")
-        except Exception as ex:
-            app.logger.error("DB Initialization failed: %s", ex)
-            abort(500)
-
-
-    init_db()
-
+with app.app_context():
     try:
-        vectorizer, clf, classes = joblib.load("money_ai_model.pkl")
+        init_db()
+        print("✅ Database initialized successfully.")
     except Exception as ex:
-        app.logger.error("AI model loading failed: %s", ex)
-        vectorizer = clf = classes = None
+        print(f"❌ Database initialization failed: {ex}")
 
+
+
+# -------------------- Custom Jinja2 filter --------------------
+
+@app.template_filter('datetimeformat')
+def datetimeformat(value, format='%b %Y'):
+    return value.strftime(format) if value else ""
+
+@app.template_filter('format_dt')
+def format_datetime(value):
+    if not value:
+        return ""
     try:
-        amount_vectorizer, amount_clf, amount_le = joblib.load("amount_extractor.pkl")
-    except Exception as ex:
-        app.logger.error("Amount extractor model loading failed: %s", ex)
-        amount_vectorizer = amount_clf = amount_le = None
-
-
-
-    # ------------- Categories ------------
-    CATEGORIES = {
-        "Income": ["Salary", "Other Income Sources"],
-        "Expenses": [
-            "Food & Drinks", "Shopping", "Personal Care", "Transport", "Loans & EMI",
-            "Education", "Bills & Utilities", "Housing", "Entertainment", "Gifts", "Others"
-        ],
-        "Usne-Pasne": ["Money Sent", "Money Received"],
-        "Savings / Investments": ["Savings", "Mutual Fund", "Stock", "Crypto", "Forex", "Property"]
-    }
-
-
-
-    def extract_amounts(text):
-        if amount_vectorizer is None or amount_clf is None or amount_le is None:
-            # Fallback to regex
-            matches = re.findall(r'[\d,.]+', text)
-            amounts = [float(m.replace(',', '')) for m in matches]
-            return sum(amounts) if amounts else 0
-        
-        tokens = text.split()
-        X_vect = amount_vectorizer.transform(tokens)
-        y_pred = amount_clf.predict(X_vect)
-        labels = amount_le.inverse_transform(y_pred)
-
-        amounts = []
-        for token, label in zip(tokens, labels):
-            if label == "AMOUNT":
-                # Remove non-numeric characters
-                clean_token = re.sub(r'[^\d.]', '', token)
-                if clean_token:
-                    amounts.append(float(clean_token))
-        if not amounts:
-            return 0
-        
-        # Sum multiple amounts if present
-        return sum(amounts)
-
-
-
-
-    # ------------ Helper Functions -------------
-    def classify_and_insert(user_input: str):
-        amount = extract_amounts(user_input)
-
-        X_test = vectorizer.transform([user_input])
-        prediction = clf.predict(X_test)[0]
-        category, sub_category = prediction.split("|")
-
-        
+        dt = datetime.strptime(value, "%Y-%m-%d %H:%M:%S")
+        return dt.strftime("%-d %b, %-I.%M %p")
+    except:
         try:
-            conn = get_db()
-            cur = conn.cursor()
-            cur.execute("""
-                INSERT INTO transactions (category, sub_category, description, amount, date_time)
-                VALUES (%s, %s, %s, %s, %s)
-            """, (category, sub_category, user_input, amount, datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
+            dt = datetime.strptime(value, "%Y-%m-%d")
+            return dt.strftime("%d %B %Y")
+        except:
+            return value
+
+@app.template_filter('datetimeformat')
+def datetimeformat(value, fmt='%b %Y'):
+    return datetime.strptime(value, "%Y-%m").strftime(fmt)
+
+@app.context_processor
+def inject_categories():
+    categories = ["all", "Food & Drinks", "Shopping", "Transport", "Bills & Utilities"]
+    return dict(categories=categories)
 
 
 
-            cur.execute("SELECT * FROM transactions ORDER BY id DESC LIMIT 1")
-            txn_id = cur.fetchone()[0]
-            conn.commit()
-            cur.close()
-            conn.close()
-            
-            return {"id": txn_id, "category": category, "sub_category": sub_category, "amount": amount, "description": user_input}
-        except Exception as ex:
-            print("DB Insert failed:", ex)
-            return None
-
-        
-
-
-    # ------------ Routes ----------------------
-
-    # Utility for converting result
-    def rows_to_dict(cur, rows):
-        desc = [d[0] for d in cur.description]
-        return [dict(zip(desc, row)) for row in rows]
-
-    @app.route("/")
-    def index():
+# -------------------- Class-Based Views --------------------
+class IndexView(MethodView):
+    def get(self):
+        month_filter = request.args.get("month", "").strip()
+        service = DashboardService(month_filter)
         try:
-            conn = get_db()
-            cur = conn.cursor()
-            now = datetime.now()
-            current_year = now.year
-            months = [ (now-relativedelta(months=i)).strftime("%Y-%m") for i in range(12) ]
-            month_filter = request.args.get("month", "").strip()
-            if not month_filter or month_filter not in months:
-                month_filter = now.strftime("%Y-%m")
-            year, month = map(int, month_filter.split("-"))
-            start_of_month = datetime(year, month, 1)
-            next_month = datetime(year+1, 1, 1) if month==12 else datetime(year, month+1, 1)
-            cur.execute("""
-                SELECT category, sub_category, SUM(amount) as total
-                FROM transactions
-                WHERE date_time >= %s AND date_time < %s
-                GROUP BY category, sub_category
-            """, (start_of_month.strftime("%Y-%m-%d 00:00:00"), next_month.strftime("%Y-%m-%d 00:00:00")))
-            data = rows_to_dict(cur, cur.fetchall())
-            cur.execute("SELECT SUM(amount) as networth FROM transactions WHERE date_time >= %s AND date_time < %s",
-                        (f"{current_year}-01-01 00:00:00", f"{current_year+1}-01-01 00:00:00"))
-            networth_row = cur.fetchone()
-            networth = networth_row[0] or 0
-            cur.close()
-            conn.close()
-            summary = {}
-            for cat, subs in CATEGORIES.items():
-                summary[cat] = []
-                for sub in subs:
-                    summary[cat].append({"sub_category": sub, "amount": 0})
-            for row in data:
-                cat, sub, amt = row["category"], row["sub_category"], row["total"]
-                if cat not in summary:
-                    summary[cat] = [{"sub_category": sub, "amount": amt}]
-                    continue
-                for item in summary[cat]:
-                    if item["sub_category"] == sub:
-                        item["amount"] = amt
-            totals = {cat: sum([x["amount"] for x in summary[cat]]) for cat in summary}
-            return render_template("index.html", summary=summary, totals=totals, networth=networth, months=months, month_filter=month_filter)
+            context = service.get_context()
+            return render_template(
+                "index.html",
+                summary=context["summary"],
+                totals=context["totals"],
+                networth=context["networth"],
+                months=context["months"],
+                month_filter=context["month_filter"]
+            )
         except Exception as ex:
-            app.logger.error("Index fetch failed: %s", ex)
+            current_app.logger.error("Index fetch failed: %s", ex)
             abort(500)
 
-    @app.route("/add", methods=["GET", "POST"])
-    def add_chat():
-        if request.method == "POST":
-            text = request.form.get("text")
-            txn = classify_and_insert(text)
-            if txn:
-                return jsonify({"success": True, "txn": txn})
-            return jsonify({"success": False, "error": "Could not parse amount"})
+class AddChatView(MethodView):
+    def get(self):
         try:
-            now = datetime.now()
-            conn = get_db()
-            cur = conn.cursor()
-            cur.execute("""
-                SELECT * FROM transactions
-                WHERE date_time >= %s AND date_time < %s
-                ORDER BY date_time ASC
-            """, (now.strftime("%Y-%m-01 00:00:00"), (now + relativedelta(months=+1)).strftime("%Y-%m-01 00:00:00")))
-            txns = rows_to_dict(cur, cur.fetchall())
-            cur.close()
-            conn.close()
+            add_service = AddService()
+            txns = add_service.fetch_current_month_txns()
         except Exception as ex:
-            app.logger.error("Add: GET failed: %s", ex)
+            current_app.logger.error("Add: GET failed: %s", ex)
             flash("Could not fetch transactions", "danger")
             txns = []
         return render_template("add.html", transactions=txns)
 
-    @app.route("/subcategory/<category>/<sub_category>")
-    def subcategory_view(category, sub_category):
+    def post(self):
+        text = request.form.get("text")
+        txn = classify_and_insert(text)
+        if txn:
+            return jsonify({"success": True, "txn": txn})
+        return jsonify({"success": False, "error": "Could not parse amount"})
+    
+
+class SubcategoryView(MethodView):
+    def get(self, category, sub_category):
         try:
-            conn = get_db()
-            cur = conn.cursor()
-            cur.execute("SELECT * FROM transactions WHERE category=%s AND sub_category=%s ORDER BY date_time DESC", (category, sub_category))
-            txns = rows_to_dict(cur, cur.fetchall())
-            cur.close()
-            conn.close()
+            subcat_service = SubcategoryService()
+            txns = subcat_service.fetch_transactions_by_subcategory(category, sub_category)
         except Exception as ex:
-            app.logger.error("Subcategory fetch failed: %s", ex)
+            current_app.logger.error("Subcategory fetch failed: %s", ex)
             abort(500)
         return render_template("subcategory.html", transactions=txns, category=category, sub_category=sub_category)
+    
 
-    @app.route("/edit/<int:txn_id>", methods=["GET", "POST"])
-    def edit(txn_id):
+
+class EditView(MethodView):
+    def get(self, txn_id):
+        print("Fetching transaction for edit...",txn_id)
         try:
-            conn = get_db()
-            cur = conn.cursor()
-            cur.execute("SELECT * FROM transactions WHERE id=%s", (txn_id,))
-            txn = rows_to_dict(cur, cur.fetchall())[0] if cur.rowcount > 0 else None
-            if request.method == "POST":
-                new_desc = request.form["description"]
-                new_amount = request.form["amount"]
-                new_cat = request.form["category"]
-                new_sub = request.form["sub_category"]
-                cur.execute("""
-                    UPDATE transactions
-                    SET description=%s, amount=%s, category=%s, sub_category=%s
-                    WHERE id=%s
-                """, (new_desc, new_amount, new_cat, new_sub, txn_id))
-                conn.commit()
-                cur.close()
-                conn.close()
-                new_label = f"{new_cat}|{new_sub}"
-                # Safe model update (for demo)
-                v, m, c = joblib.load("money_ai_model.pkl")
-                if new_label not in c:
-                    c = list(c) + [new_label]
-                X_new = v.transform([new_desc])
-                m.partial_fit(X_new, [new_label], classes=c)
-                joblib.dump((v, m, c), "money_ai_model.pkl")
-                flash("Transaction updated successfully!", "success")
-                return redirect(url_for("edit", txn_id=txn_id))
-            cur.close()
-            conn.close()
+            service = EditService()
+            txn = service.fetch_transaction(txn_id)
+            if txn is None:
+                current_app.logger.error("Transaction not found or access denied for txn_id: %s", txn_id)
+                abort(404)
         except Exception as ex:
-            app.logger.error("Edit fetch/update failed: %s", ex)
-            abort(500)
+            current_app.logger.error("Edit fetch failed: %s", ex)
+            abort(404)
         return render_template("edit.html", txn=txn, categories=CATEGORIES)
 
-    
-    @app.route("/delete/<int:txn_id>", methods=["POST"])
-    def delete_transaction(txn_id):
+    def post(self, txn_id):
         try:
-            conn = get_db()
-            cur = conn.cursor()
-            cur.execute("DELETE FROM transactions WHERE id=%s", (txn_id,))
-            conn.commit()
-            cur.close()
-            conn.close()
+            service = EditService()
+            new_desc = request.form["description"]
+            new_amount = request.form["amount"]
+            new_cat = request.form["category"]
+            new_sub = request.form["sub_category"]
+            service.update_transaction(txn_id, new_desc, new_amount, new_cat, new_sub)
+            flash("Transaction updated successfully!", "success")
+            return redirect(url_for("add_chat", txn_id=txn_id))
+        except Exception as ex:
+            current_app.logger.error("Edit update failed: %s", ex)
+            abort(500)
+
+class DeleteTransactionView(MethodView):
+    def post(self, txn_id):
+        try:
+            service = DeleteService()
+            service.delete_transaction(txn_id, session["user_id"])
             flash("Transaction deleted successfully!", "success")
         except Exception as ex:
-            app.logger.error("Delete transaction failed: %s", ex)
+            current_app.logger.error("Delete transaction failed: %s", ex)
             flash("Could not delete transaction!", "danger")
         return redirect(url_for("add_chat"))
 
-    @app.route("/data/<sub_category>")
-    def dynamic_data(sub_category):
+
+class DynamicDataView(MethodView):
+    def get(self, sub_category):
         search = request.args.get("search", "").strip()
         month_filter = request.args.get("month", "").strip()
-        now = datetime.now()
-        months = [ (now-relativedelta(months=i)).strftime("%Y-%m") for i in range(12) ]
-        if not month_filter or month_filter not in months:
-            month_filter = now.strftime("%Y-%m")
-        year, month = map(int, month_filter.split("-"))
-        start_of_month = datetime(year, month, 1)
-        next_month = datetime(year+1, 1, 1) if month==12 else datetime(year, month+1, 1)
+        service = DataService()
         try:
-            conn = get_db()
-            cur = conn.cursor()
-            if sub_category.lower() == "all":
-                query = "SELECT * FROM transactions WHERE date_time >= %s AND date_time < %s"
-                params = [start_of_month.strftime("%Y-%m-%d 00:00:00"), next_month.strftime("%Y-%m-%d 00:00:00")]
-            else:
-                query = "SELECT * FROM transactions WHERE sub_category=%s AND date_time >= %s AND date_time < %s"
-                params = [sub_category, start_of_month.strftime("%Y-%m-%d 00:00:00"), next_month.strftime("%Y-%m-%d 00:00:00")]
-            if search:
-                query += " AND (description ILIKE %s OR category ILIKE %s OR sub_category ILIKE %s)"
-                params.extend([f"%{search}%"]*3)
-            query += " ORDER BY date_time DESC"
-            cur.execute(query, params)
-            txns = rows_to_dict(cur, cur.fetchall())
-            cur.close()
-            conn.close()
+            txns, subcat_list, months, month_filter = service.fetch(sub_category, month_filter, search, session["user_id"])
         except Exception as ex:
-            app.logger.error("Dynamic data fetch failed: %s", ex)
-            txns = []
-        subcat_list = [{ "category": cat, "sub_category": sub } for cat, subs in CATEGORIES.items() for sub in subs]
+            current_app.logger.error("Dynamic data fetch failed: %s", ex)
+            txns, subcat_list, months = [], [], []
         return render_template(
             "all-data.html",
             transactions=txns,
@@ -353,131 +216,119 @@ def create_app():
             months=months,
             month_filter=month_filter
         )
+            
 
-    @app.route("/analytics")
-    def analytics():
+class AnalyticsView(MethodView):
+    def get(self):
         try:
-            conn = get_db()
-            cur = conn.cursor()
-            now = datetime.now()
-            start_of_month = datetime(now.year, now.month, 1)
-            next_month = datetime(now.year+1, 1, 1) if now.month==12 else datetime(now.year, now.month+1, 1)
-            cur.execute("""
-                SELECT date(date_time) as day, SUM(amount) as total
-                FROM transactions
-                WHERE category='Expenses' AND date_time >= %s AND date_time < %s
-                GROUP BY day ORDER BY day ASC
-            """, (start_of_month.strftime("%Y-%m-%d 00:00:00"), next_month.strftime("%Y-%m-%d 00:00:00")))
-            expenses_rows = rows_to_dict(cur, cur.fetchall())
-            expenses_data = {row["day"].isoformat(): row["total"] for row in expenses_rows}
-            cur.execute("""
-                SELECT substring(date_time,1,7) as month, SUM(amount) as total
-                FROM transactions WHERE category='Income'
-                GROUP BY month ORDER BY month ASC
-            """)
-            income_rows = rows_to_dict(cur, cur.fetchall())
-            cur.execute("""
-                SELECT substring(date_time,1,7) as month, SUM(amount) as total
-                FROM transactions WHERE category='Savings / Investments'
-                GROUP BY month ORDER BY month ASC
-            """)
-            savings_rows = rows_to_dict(cur, cur.fetchall())
-            cur.execute("""
-                SELECT substring(date_time,1,7) as month,
-                    SUM(CASE WHEN sub_category='Money Sent' THEN amount ELSE 0 END) as sent,
-                    SUM(CASE WHEN sub_category='Money Received' THEN amount ELSE 0 END) as received
-                FROM transactions WHERE category='Usne-Pasne'
-                GROUP BY month ORDER BY month ASC
-            """)
-            up_rows = rows_to_dict(cur, cur.fetchall())
-            cur.close()
-            conn.close()
-            return render_template("analytics.html",expenses_data=expenses_data,income_rows=income_rows,savings_rows=savings_rows,up_rows=up_rows)
+            service = AnalyticsService()
+            expenses_data, income_rows, savings_rows, up_rows = service.fetch_analytics()
         except Exception as ex:
-            app.logger.error("Analytics fetch failed: %s", ex)
+            current_app.logger.error("Analytics fetch failed: %s", ex)
             expenses_data, income_rows, savings_rows, up_rows = {}, [], [], []
-            return render_template("analytics.html",expenses_data=expenses_data,income_rows=income_rows,savings_rows=savings_rows,up_rows=up_rows)
+        return render_template(
+            "analytics.html",
+            expenses_data=expenses_data,
+            income_rows=income_rows,
+            savings_rows=savings_rows,
+            up_rows=up_rows
+        )
 
-    @app.route("/profile", methods=["GET"])
-    def profile():
+class ProfileView(MethodView):
+    def get(self):
         return render_template("profile.html")
-
-    @app.template_filter('format_dt')
-    def format_datetime(value):
-        if not value:
-            return ""
+    
+class DownloadBackupView(MethodView):
+    def get(self):
         try:
-            dt = datetime.strptime(value, "%Y-%m-%d %H:%M:%S")
-            return dt.strftime("%-d %b, %-I.%M %p")
-        except:
-            try:
-                dt = datetime.strptime(value, "%Y-%m-%d")
-                return dt.strftime("%d %B %Y")
-            except:
-                return value
-
-    @app.template_filter('datetimeformat')
-    def datetimeformat(value, fmt='%b %Y'):
-        return datetime.strptime(value, "%Y-%m").strftime(fmt)
-
-    @app.context_processor
-    def inject_categories():
-        categories = ["all", "Food & Drinks", "Shopping", "Transport", "Bills & Utilities"]
-        return dict(categories=categories)
-
-    @app.route("/backup/download")
-    def download_backup():
-        try:
-            conn = get_db()
-            df = pd.read_sql_query("SELECT * FROM transactions", conn)
-            conn.close()
-            file_path = os.path.join(app.config["UPLOAD_FOLDER"], "backup.xlsx")
-            df.to_excel(file_path, index=False)
+            service = BackupService()
+            file_path = service.export_xlsx()
             return send_file(file_path, as_attachment=True)
         except Exception as ex:
-            app.logger.error("Backup download failed: %s", ex)
+            current_app.logger.error("Backup download failed: %s", ex)
             abort(500)
 
-    @app.route("/backup/upload", methods=["POST"])
-    def upload_backup():
+class UploadBackupView(MethodView):
+    def post(self):
         try:
             if "file" not in request.files or request.files["file"].filename == "":
                 flash("No file uploaded or selected!", "danger")
                 return redirect(url_for("backup_page"))
             file = request.files["file"]
             filename = secure_filename(file.filename)
-            file_path = os.path.join(app.config["UPLOAD_FOLDER"], filename)
+            file_path = os.path.join(current_app.config["UPLOAD_FOLDER"], filename)
             file.save(file_path)
-            df = pd.read_excel(file_path)
-            conn = get_db()
-            cur = conn.cursor()
-            for _, row in df.iterrows():
-                cur.execute("""
-                    INSERT INTO transactions (id, category, sub_category, description, amount, date_time)
-                    VALUES (%s, %s, %s, %s, %s, %s)
-                    ON CONFLICT (id) DO NOTHING
-                """, (
-                    int(row.get("id")) if row.get("id") else None, row.get("category"),
-                    row.get("sub_category"), row.get("description"),
-                    row.get("amount"), row.get("date_time")
-                ))
-            conn.commit()
-            cur.close()
-            conn.close()
+            service = BackupService()
+            service.import_xlsx(file_path)
             flash("Data uploaded successfully! Duplicate data were skipped", "success")
             return redirect(url_for("profile"))
         except Exception as ex:
-            app.logger.error("Backup upload failed: %s", ex)
+            current_app.logger.error("Backup upload failed: %s", ex)
             flash("Upload failed!", "danger")
             return redirect(url_for("backup_page"))
 
-    @app.route("/backup", methods=["GET"])
-    def backup_page():
+class BackupPageView(MethodView):
+    def get(self):
         return render_template("backup.html")
+    
+# -------------------- Register CBV with URL --------------------
 
-    return app
+app.add_url_rule("/", view_func=IndexView.as_view("index"))
+app.add_url_rule("/add", view_func=AddChatView.as_view("add_chat"))
+app.add_url_rule("/subcategory/<category>/<sub_category>",view_func=SubcategoryView.as_view("subcategory_view"))
+app.add_url_rule("/edit/<int:txn_id>",view_func=EditView.as_view("edit"),methods=["GET", "POST"])
+app.add_url_rule("/delete/<int:txn_id>",view_func=DeleteTransactionView.as_view("delete_transaction"),methods=["POST"])
+app.add_url_rule("/data/<sub_category>", view_func=DynamicDataView.as_view("dynamic_data"))
+app.add_url_rule("/analytics", view_func=AnalyticsView.as_view("analytics"))
+app.add_url_rule("/profile", view_func=ProfileView.as_view("profile"))
+app.add_url_rule("/backup/download", view_func=DownloadBackupView.as_view("download_backup"))
+app.add_url_rule("/backup/upload", view_func=UploadBackupView.as_view("upload_backup"), methods=["POST"])
+app.add_url_rule("/backup", view_func=BackupPageView.as_view("backup_page"))
 
+@app.route("/signup", methods=["GET", "POST"])
+def signup():
+    if request.method == "POST":
+        username = request.form["username"]
+        password = request.form["password"]
+        hashed_password = generate_password_hash(password)
+        try:
+            conn = get_db()
+            cur = conn.cursor()
+            cur.execute("INSERT INTO users (username, password) VALUES (%s, %s)", (username, hashed_password))
+            conn.commit()
+            flash("Signup successful! Please log in.", "success")
+            return redirect(url_for("login"))
+        except Exception as ex:
+            current_app.logger.error("Signup failed: %s", ex)
+            flash("Signup failed. Try a different username.", "danger")
+    return render_template("signup.html")
+
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    if request.method == "POST":
+        username = request.form["username"]
+        password = request.form["password"]
+        try:
+            conn = get_db()
+            cur = conn.cursor()
+            cur.execute("SELECT id, password FROM users WHERE username = %s", (username,))
+            user = cur.fetchone()
+            if user and check_password_hash(user[1], password):
+                session["user_id"] = user[0]
+                flash("Login successful!", "success")
+                return redirect(url_for("index"))
+            flash("Invalid credentials.", "danger")
+        except Exception as ex:
+            current_app.logger.error("Login failed: %s", ex)
+            flash("Login failed. Please try again.", "danger")
+    return render_template("login.html")
+
+@app.route("/logout")
+def logout():
+    session.pop("user_id", None)
+    flash("Logged out successfully.", "success")
+    return redirect(url_for("login"))
+
+# -------------------- Run App --------------------
 if __name__ == "__main__":
-    # For production, use Gunicorn: gunicorn "app:create_app()" --bind 0.0.0.0:8000 --workers 4
-    app = create_app()
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)), debug=False)
