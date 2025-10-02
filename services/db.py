@@ -60,6 +60,19 @@ def init_db():
         """)
         conn.commit()
 
+        # Add passwords table to the database
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS passwords (
+                id SERIAL PRIMARY KEY,
+                category TEXT NOT NULL,
+                username TEXT NOT NULL,
+                password TEXT NOT NULL,
+                date_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                user_id INTEGER REFERENCES users(id)
+            )
+        """)
+        conn.commit()
+
         cur.close()
         conn.close()
         print("✅ DB initialized and sequence synced")

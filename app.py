@@ -1,6 +1,6 @@
 from datetime import datetime
 import os
-from flask import Flask, redirect, render_template, request, flash, abort, current_app,jsonify, send_file, url_for, session
+from flask import Flask, redirect, render_template, request, flash, abort,jsonify, send_file, url_for, session
 from flask.views import MethodView
 from werkzeug.security import generate_password_hash, check_password_hash
 from services.db import get_db, init_db
@@ -13,6 +13,7 @@ from services.delete_service import DeleteService
 from services.data_service import DataService
 from services.analytics_service import AnalyticsService
 from services.backup_service import BackupService
+from services.password_service import PasswordService
 from werkzeug.utils import secure_filename
 
 
@@ -42,12 +43,12 @@ def login_required(f):
 @app.before_request
 def require_login():
     excluded_routes = ["login", "signup", "static"]
-    current_app.logger.debug(f"Request endpoint: {request.endpoint}")
+    print(f"Request endpoint: {request.endpoint}")
     if request.endpoint in excluded_routes or request.endpoint is None:
-        current_app.logger.debug("Access allowed: Excluded route or static file.")
+        print("Access allowed: Excluded route or static file.")
         return  # Allow access to excluded routes and static files
     if "user_id" not in session:
-        current_app.logger.debug("Access denied: User not logged in.")
+        print("Access denied: User not logged in.")
         return redirect(url_for("login"))
 
 # -------------------- Error Handlers --------------------
@@ -57,12 +58,12 @@ def not_found(e):
 
 @app.errorhandler(500)
 def internal_error(e):
-    current_app.logger.error("Internal Server Error: %s", traceback.format_exc())
+    print("Internal Server Error: %s", traceback.format_exc())
     return render_template('500.html'), 500
 
 @app.errorhandler(Exception)
 def handle_any_error(e):
-    current_app.logger.error("Unhandled Exception: %s", traceback.format_exc())
+    print("Unhandled Exception: %s", traceback.format_exc())
     flash("An unexpected error occurred.", "danger")
     return render_template('500.html'), 500
 
@@ -124,7 +125,7 @@ class IndexView(MethodView):
                 month_filter=context["month_filter"]
             )
         except Exception as ex:
-            current_app.logger.error("Index fetch failed: %s", ex)
+            print("Index fetch failed: %s", ex)
             abort(500)
 
 class AddChatView(MethodView):
@@ -133,7 +134,7 @@ class AddChatView(MethodView):
             add_service = AddService()
             txns = add_service.fetch_current_month_txns()
         except Exception as ex:
-            current_app.logger.error("Add: GET failed: %s", ex)
+            print("Add: GET failed: %s", ex)
             flash("Could not fetch transactions", "danger")
             txns = []
         return render_template("add.html", transactions=txns)
@@ -152,7 +153,7 @@ class SubcategoryView(MethodView):
             subcat_service = SubcategoryService()
             txns = subcat_service.fetch_transactions_by_subcategory(category, sub_category)
         except Exception as ex:
-            current_app.logger.error("Subcategory fetch failed: %s", ex)
+            print("Subcategory fetch failed: %s", ex)
             abort(500)
         return render_template("subcategory.html", transactions=txns, category=category, sub_category=sub_category)
     
@@ -165,10 +166,10 @@ class EditView(MethodView):
             service = EditService()
             txn = service.fetch_transaction(txn_id)
             if txn is None:
-                current_app.logger.error("Transaction not found or access denied for txn_id: %s", txn_id)
+                print("Transaction not found or access denied for txn_id: %s", txn_id)
                 abort(404)
         except Exception as ex:
-            current_app.logger.error("Edit fetch failed: %s", ex)
+            print("Edit fetch failed: %s", ex)
             abort(404)
         return render_template("edit.html", txn=txn, categories=CATEGORIES)
 
@@ -183,7 +184,7 @@ class EditView(MethodView):
             flash("Transaction updated successfully!", "success")
             return redirect(url_for("add_chat", txn_id=txn_id))
         except Exception as ex:
-            current_app.logger.error("Edit update failed: %s", ex)
+            print("Edit update failed: %s", ex)
             abort(500)
 
 class DeleteTransactionView(MethodView):
@@ -193,7 +194,7 @@ class DeleteTransactionView(MethodView):
             service.delete_transaction(txn_id, session["user_id"])
             flash("Transaction deleted successfully!", "success")
         except Exception as ex:
-            current_app.logger.error("Delete transaction failed: %s", ex)
+            print("Delete transaction failed: %s", ex)
             flash("Could not delete transaction!", "danger")
         return redirect(url_for("add_chat"))
 
@@ -206,7 +207,7 @@ class DynamicDataView(MethodView):
         try:
             txns, subcat_list, months, month_filter = service.fetch(sub_category, month_filter, search, session["user_id"])
         except Exception as ex:
-            current_app.logger.error("Dynamic data fetch failed: %s", ex)
+            print("Dynamic data fetch failed: %s", ex)
             txns, subcat_list, months = [], [], []
         return render_template(
             "all-data.html",
@@ -224,7 +225,7 @@ class AnalyticsView(MethodView):
             service = AnalyticsService()
             expenses_data, income_rows, savings_rows, up_rows = service.fetch_analytics()
         except Exception as ex:
-            current_app.logger.error("Analytics fetch failed: %s", ex)
+            print("Analytics fetch failed: %s", ex)
             expenses_data, income_rows, savings_rows, up_rows = {}, [], [], []
         return render_template(
             "analytics.html",
@@ -245,7 +246,7 @@ class DownloadBackupView(MethodView):
             file_path = service.export_xlsx()
             return send_file(file_path, as_attachment=True)
         except Exception as ex:
-            current_app.logger.error("Backup download failed: %s", ex)
+            print("Backup download failed: %s", ex)
             abort(500)
 
 class UploadBackupView(MethodView):
@@ -256,20 +257,76 @@ class UploadBackupView(MethodView):
                 return redirect(url_for("backup_page"))
             file = request.files["file"]
             filename = secure_filename(file.filename)
-            file_path = os.path.join(current_app.config["UPLOAD_FOLDER"], filename)
+            file_path = os.path.join(app.config["UPLOAD_FOLDER"], filename)
             file.save(file_path)
             service = BackupService()
             service.import_xlsx(file_path)
             flash("Data uploaded successfully! Duplicate data were skipped", "success")
             return redirect(url_for("profile"))
         except Exception as ex:
-            current_app.logger.error("Backup upload failed: %s", ex)
+            print("Backup upload failed: %s", ex)
             flash("Upload failed!", "danger")
             return redirect(url_for("backup_page"))
 
 class BackupPageView(MethodView):
     def get(self):
         return render_template("backup.html")
+    
+
+class PasswordManagerView(MethodView):
+    def get(self):
+        user_id = session.get("user_id")
+        passwords = []
+        try:
+            service = PasswordService()
+            passwords = service.list_passwords(user_id)
+        except Exception as ex:
+            print("Password fetch failed: %s", ex)
+
+        return render_template("password_manager.html", passwords=passwords)
+    
+    def post(self):
+        # Handle adding a new password entry
+        category = request.form.get("category")
+        username = request.form.get("username")
+        password = request.form.get("password")
+        action = request.form.get("activeOption")
+        user_id = session.get("user_id")
+
+
+        if not category or not username or not password:
+            flash("All fields are required!", "danger")
+            return redirect(url_for("password_manager"))
+        
+        try:
+            service = PasswordService()
+            if action == "New":
+
+                password = service.add_password(user_id, category, username, password)
+                if password:
+                    return jsonify({"success": True, "password": password})
+                else:
+                    return jsonify({"success": False, "password": password})
+
+            elif action == "Search":
+                results = service.search_passwords(user_id, category, username)
+
+                if results:
+                    return jsonify({"success": True, "password": results})
+                else:
+                    return jsonify({"success": False, "password": results})
+                
+            
+            elif action == "List":
+                passwords = service.list_passwords(user_id)
+                return jsonify({"success": True, "password": passwords})
+            
+        except Exception as ex:
+            print("Add password failed: %s", ex)
+            flash("An error occurred while adding the password.", "danger")
+            return jsonify({"success": False, "error": "An error occurred"})
+    
+
     
 # -------------------- Register CBV with URL --------------------
 
@@ -284,6 +341,7 @@ app.add_url_rule("/profile", view_func=ProfileView.as_view("profile"))
 app.add_url_rule("/backup/download", view_func=DownloadBackupView.as_view("download_backup"))
 app.add_url_rule("/backup/upload", view_func=UploadBackupView.as_view("upload_backup"), methods=["POST"])
 app.add_url_rule("/backup", view_func=BackupPageView.as_view("backup_page"))
+app.add_url_rule("/passwords", view_func=PasswordManagerView.as_view("password_manager"))
 
 @app.route("/signup", methods=["GET", "POST"])
 def signup():
@@ -299,7 +357,7 @@ def signup():
             flash("Signup successful! Please log in.", "success")
             return redirect(url_for("login"))
         except Exception as ex:
-            current_app.logger.error("Signup failed: %s", ex)
+            print("Signup failed: %s", ex)
             flash("Signup failed. Try a different username.", "danger")
     return render_template("signup.html")
 
@@ -319,7 +377,7 @@ def login():
                 return redirect(url_for("index"))
             flash("Invalid credentials.", "danger")
         except Exception as ex:
-            current_app.logger.error("Login failed: %s", ex)
+            print("Login failed: %s", ex)
             flash("Login failed. Please try again.", "danger")
     return render_template("login.html")
 
