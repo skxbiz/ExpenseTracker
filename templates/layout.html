@@ -225,7 +225,7 @@
             </a>
 
 
-            <a href="#" class="nav-item">
+            <a href="{{url_for('password_manager')}}" class="nav-item">
                 <span class="icon">
                     <!-- Wallet -->
                     <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="currentColor"
@@ -234,7 +234,7 @@
                             d="M2 7a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v2h-7a3 3 0 0 0 0 6h7v2a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V7zm14 5a1 1 0 1 1 0 2h6v-2h-6z" />
                     </svg>
                 </span>
-                <span>Wallet</span>
+                <span>Passwords</span>
             </a>
 
             <a href="{{ url_for('profile') }}" class="nav-item {% if request.endpoint=='profile' %}active{% endif %}">
