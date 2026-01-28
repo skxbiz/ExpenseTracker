@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Money Tracker {% block title %} {% endblock %}</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
-    <link rel="icon" type="image/png" href="{{ url_for('static', filename='favicon.png') }}">
+    <link rel="icon" type="image/png" href="/static/favicon.png">
 
 
     <style>
@@ -194,7 +194,7 @@
 
     <section class="bottom-navigation" id="bottom-navigation">
         <div class="bottom-nav">
-            <a href="{{ url_for('index') }}" class="nav-item {% if request.endpoint=='index' %}active{% endif %}">
+            <a href="/" class="nav-item {% if request.url.path == '/' %}active{% endif %}">
                 <span class="icon">
                     <!-- Home -->
                     <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="currentColor"
@@ -206,7 +206,7 @@
                 <span>Home</span>
             </a>
 
-            <a href="{{url_for('analytics')}}" class="nav-item">
+            <a href="/analytics" class="nav-item">
                 <span class="icon">
                     <!-- Analytics -->
                     <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="currentColor"
@@ -225,7 +225,7 @@
             </a>
 
 
-            <a href="{{url_for('password_manager')}}" class="nav-item">
+            <a href="/passwords" class="nav-item">
                 <span class="icon">
                     <!-- Wallet -->
                     <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="currentColor"
@@ -237,7 +237,7 @@
                 <span>Passwords</span>
             </a>
 
-            <a href="{{ url_for('profile') }}" class="nav-item {% if request.endpoint=='profile' %}active{% endif %}">
+            <a href="/profile" class="nav-item {% if request.url.path == '/profile' %}active{% endif %}">
                 <span class="icon">
                     <!-- Profile -->
                     <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="currentColor"

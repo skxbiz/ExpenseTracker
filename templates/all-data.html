@@ -297,7 +297,7 @@
 
     <!-- Input area -->
 <div id="chat-form" class="input-box" style="display:flex; align-items:center;box-sizing: border-box;">
-    <form method="GET" action="{{ url_for('dynamic_data', sub_category=sub_category) }}">
+    <form method="GET" action="/data/{{ sub_category }}">
         <button type="submit" class="submit-btn">
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20"
                  fill="#666" viewBox="0 0 24 24" style=" transform: translateY(15%);">
@@ -306,7 +306,7 @@
         </button>
 
         <input type="text" id="chat-input" name="search" placeholder="Enter expense details..."
-               value="{{ request.args.get('search', '') }}" required>
+               value="{{ request.query_params.get('search', '') }}" required>
 
         <!-- 👇 preserve the selected month -->
         {% if month_filter %}
@@ -333,7 +333,7 @@
 
             <div class="filter-card" style="background:none; box-shadow:none; border-radius:0;">
 
-                <form method="GET" action="{{ url_for('dynamic_data', sub_category=sub_category) }}">
+                <form method="GET" action="/data/{{ sub_category }}">
                     <select name="month" onchange="this.form.submit()">
                         {% for m in months %}
                         {% set label = m | datetimeformat('%b %Y') %}
@@ -342,8 +342,8 @@
                     </select>
 
                     <!-- search preserve -->
-                    {% if request.args.get('search') %}
-                    <input type="hidden" name="search" value="{{ request.args.get('search') }}">
+                    {% if request.query_params.get('search') %}
+                    <input type="hidden" name="search" value="{{ request.query_params.get('search') }}">
                     {% endif %}
                 </form>
             </div>
@@ -354,7 +354,7 @@
         <div class="filter-bar">
 
             <!-- All -->
-            <a href="{{ url_for('dynamic_data', sub_category='all', month=month_filter) }}">
+            <a href="/data/all?month={{ month_filter }}">
                 <button class="filter-btn {% if sub_category|lower == 'all' %}active{% endif %}" data-cat="All">
                     All
                 </button>
@@ -363,7 +363,7 @@
             <!-- Active category first -->
             {% for cat in subcat_list %}
             {% if cat.sub_category == sub_category %}
-            <a href="{{ url_for('dynamic_data', sub_category=cat.sub_category, month=month_filter) }}">
+            <a href="/data/{{ cat.sub_category }}?month={{ month_filter }}">
                 <button class="filter-btn active" data-cat="{{ cat.sub_category }}">
                     {{ cat.sub_category }}
                 </button>
@@ -374,7 +374,7 @@
             <!-- Other categories after -->
             {% for cat in subcat_list %}
             {% if cat.sub_category != sub_category %}
-            <a href="{{ url_for('dynamic_data', sub_category=cat.sub_category, month=month_filter) }}">
+            <a href="/data/{{ cat.sub_category }}?month={{ month_filter }}">
                 <button class="filter-btn" data-cat="{{ cat.sub_category }}">
                     {{ cat.sub_category }}
                 </button>

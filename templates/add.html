@@ -277,7 +277,7 @@
               </div>
             </div>
           </div>
-          <a href="{{ url_for('edit', txn_id=txn.id) }}" style="color:#777; font-size:14px; text-decoration:none;">✎</a>
+          <a href="/edit/{{ txn.id }}" style="color:#777; font-size:14px; text-decoration:none;">✎</a>
         </div>
         <p class="txn-amount">₹{{ txn.amount }}</p>
         <p class="txn-desc">{{ txn.description }}</p>

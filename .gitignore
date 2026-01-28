@@ -1,0 +1,51 @@
+# Virtual Environment
+venv/
+
+# Environment Variables
+.env
+
+# ML Models (if needed)
+*.pkl
+*.joblib
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+.coverage
+.pytest_cache/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+logs/
+*.log
+
+# Process
+*.pid
+
+# Env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Data
+*.csv
+*.sqlite
+*.db
+
+# ML Models (if needed)
+*.pkl
+*.joblib

@@ -266,7 +266,7 @@
 
       <div class="filter-card" style="background:none; box-shadow:none; border-radius:0;">
 
-        <form method="GET" action="{{ url_for('index', sub_category=sub_category) }}">
+        <form method="GET" action="/">
 
           <select name="month" onchange="this.form.submit()">
             {% for m in months %}
@@ -318,7 +318,7 @@
     {% for item in items %}
 
 
-   <a href="{{ url_for('dynamic_data', sub_category=item.sub_category, month=month_filter) }}" 
+   <a href="/data/{{ item.sub_category }}?month={{ month_filter }}" 
    class="transaction" 
    data-cat="{{ cat }}">
 
