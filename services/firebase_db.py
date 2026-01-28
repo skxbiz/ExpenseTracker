@@ -1,5 +1,9 @@
 # services/firebase_db.py
 
+from dotenv import load_dotenv
+load_dotenv()
+
+
 import os
 import json
 from typing import Dict, List, Optional, Any
@@ -40,31 +44,69 @@ class FirebaseService:
             cls._instance._initialized = False
         return cls._instance
 
+    # def __init__(self):
+    #     if self._initialized:
+    #         return
+
+    #     try:
+    #         # ---------- Load credentials ----------
+    #         if os.environ.get("GOOGLE_APPLICATION_CREDENTIALS"):
+    #             cred = credentials.Certificate(
+    #                 os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")
+    #             )
+
+    #         elif os.environ.get("FIREBASE_CONFIG"):
+    #             firebase_config = json.loads(os.environ.get("FIREBASE_CONFIG"))
+    #             cred = credentials.Certificate(firebase_config)
+
+    #         else:
+    #             # Production environment - must use environment variables
+    #             raise ValueError("No Firebase credentials found. Please set GOOGLE_APPLICATION_CREDENTIALS or FIREBASE_CONFIG environment variable in Render dashboard.")
+
+    #         if not firebase_admin._apps:
+    #             firebase_admin.initialize_app(cred)
+
+    #         self.db = firestore.client()
+    #         self._initialized = True
+    #         print("✅ Firebase initialized successfully")
+
+    #     except Exception as e:
+    #         print(f"❌ Firebase initialization failed: {e}")
+    #         raise HTTPException(
+    #             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+    #             detail="Firebase initialization failed",
+    #         )
+
+    
     def __init__(self):
         if self._initialized:
             return
 
         try:
-            # ---------- Load credentials ----------
-            if os.environ.get("GOOGLE_APPLICATION_CREDENTIALS"):
-                cred = credentials.Certificate(
-                    os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")
-                )
+            firebase_config = {
+                "type": os.getenv("FIREBASE_TYPE"),
+                "project_id": os.getenv("FIREBASE_PROJECT_ID"),
+                "private_key_id": os.getenv("FIREBASE_PRIVATE_KEY_ID"),
+                "private_key": os.getenv("FIREBASE_PRIVATE_KEY", "").replace("\\n", "\n"),
+                "client_email": os.getenv("FIREBASE_CLIENT_EMAIL"),
+                "client_id": os.getenv("FIREBASE_CLIENT_ID"),
+                "auth_uri": os.getenv("FIREBASE_AUTH_URI"),
+                "token_uri": os.getenv("FIREBASE_TOKEN_URI"),
+                "auth_provider_x509_cert_url": os.getenv("FIREBASE_AUTH_PROVIDER_X509_CERT_URL"),
+                "client_x509_cert_url": os.getenv("FIREBASE_CLIENT_X509_CERT_URL"),
+            }
 
-            elif os.environ.get("FIREBASE_CONFIG"):
-                firebase_config = json.loads(os.environ.get("FIREBASE_CONFIG"))
-                cred = credentials.Certificate(firebase_config)
+            missing = [k for k, v in firebase_config.items() if not v]
+            if missing:
+                raise ValueError(f"Missing Firebase env vars: {missing}")
 
-            else:
-                # Production environment - must use environment variables
-                raise ValueError("No Firebase credentials found. Please set GOOGLE_APPLICATION_CREDENTIALS or FIREBASE_CONFIG environment variable in Render dashboard.")
-
+            cred = credentials.Certificate(firebase_config)
             if not firebase_admin._apps:
                 firebase_admin.initialize_app(cred)
 
             self.db = firestore.client()
             self._initialized = True
-            print("✅ Firebase initialized successfully")
+            print("✅ Firebase initialized successfully using .env variables")
 
         except Exception as e:
             print(f"❌ Firebase initialization failed: {e}")
@@ -72,6 +114,8 @@ class FirebaseService:
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Firebase initialization failed",
             )
+
+
 
     # ---------------- USERS ----------------
 
