@@ -21,7 +21,7 @@ from services.data_service_fastapi import DataService
 from services.analytics_service_fastapi import AnalyticsService
 from services.backup_service_fastapi import BackupService
 from services.password_service_fastapi import PasswordService
-from passlib.context import CryptContext
+from passlib.hash import pbkdf2_sha256
 
 # Initialize FastAPI app
 app = FastAPI(title="Expense Tracker", debug=True)
@@ -39,17 +39,17 @@ def static_url(filename: str):
 templates.env.globals['static_url'] = static_url
 
 # Security
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# Using pbkdf2_sha256 for password hashing instead of bcrypt
 
 # Session middleware
 app.add_middleware(SessionMiddleware, secret_key=os.environ.get('SECRET_KEY', 'your-secret-key-here'))
 
 # Utility functions
 def hash_password(password: str) -> str:
-    return pwd_context.hash(password)
+    return pbkdf2_sha256.hash(password)
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    return pwd_context.verify(plain_password, hashed_password)
+    return pbkdf2_sha256.verify(plain_password, hashed_password)
 
 def login_required(request: Request):
     user_id = request.session.get("user_id")
