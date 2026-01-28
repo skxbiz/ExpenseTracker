@@ -56,8 +56,8 @@ class FirebaseService:
                 cred = credentials.Certificate(firebase_config)
 
             else:
-                # Local development
-                cred = credentials.Certificate("firebase.json")
+                # Production environment - must use environment variables
+                raise ValueError("No Firebase credentials found. Please set GOOGLE_APPLICATION_CREDENTIALS or FIREBASE_CONFIG environment variable in Render dashboard.")
 
             if not firebase_admin._apps:
                 firebase_admin.initialize_app(cred)
