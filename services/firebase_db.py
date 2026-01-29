@@ -141,6 +141,25 @@ class FirebaseService:
                 detail="Failed to fetch user",
             )
 
+    def get_user_by_id(self, user_id: str) -> Optional[Dict[str, Any]]:
+        try:
+            doc_ref = self.db.collection("users").document(user_id)
+            doc = doc_ref.get()
+            
+            if doc.exists:
+                data = doc.to_dict()
+                data["id"] = doc.id
+                return data
+            
+            return None
+
+        except Exception as e:
+            print(f"Error fetching user by ID: {e}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to fetch user",
+            )
+
     def create_user(self, username: str, password_hash: str) -> str:
         try:
             doc_ref = self.db.collection("users").document()

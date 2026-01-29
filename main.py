@@ -139,10 +139,14 @@ async def startup_event():
 async def index(request: Request, month: str = None):
     try:
         user_id = login_required(request)
+        user = firebase_service.get_user_by_id(user_id)
+        if not user:
+            return RedirectResponse(url="/login", status_code=303)
         service = DashboardService(user_id, month)
         context = service.get_context()
         return templates.TemplateResponse("index.html", {
             "request": request,
+            "user": user,
             "summary": context["summary"],
             "totals": context["totals"],
             "networth": context["networth"],
@@ -249,10 +253,14 @@ async def delete_transaction(request: Request, txn_id: str):
 async def dynamic_data(request: Request, sub_category: str, search: str = "", month: str = ""):
     try:
         user_id = login_required(request)
+        user = firebase_service.get_user_by_id(user_id)
+        if not user:
+            return RedirectResponse(url="/login", status_code=303)
         service = DataService(user_id)
         txns, subcat_list, months, month_filter = service.fetch(sub_category, month, search)
         return templates.TemplateResponse("all-data.html", {
             "request": request,
+            "user": user,
             "transactions": txns,
             "sub_category": sub_category,
             "subcat_list": subcat_list,
@@ -266,10 +274,14 @@ async def dynamic_data(request: Request, sub_category: str, search: str = "", mo
 async def analytics(request: Request):
     try:
         user_id = login_required(request)
+        user = firebase_service.get_user_by_id(user_id)
+        if not user:
+            return RedirectResponse(url="/login", status_code=303)
         service = AnalyticsService(user_id)
         expenses_data, income_rows, savings_rows, up_rows = service.fetch_analytics()
         return templates.TemplateResponse("analytics.html", {
             "request": request,
+            "user": user,
             "expenses_data": expenses_data,
             "income_rows": income_rows,
             "savings_rows": savings_rows,
@@ -281,8 +293,11 @@ async def analytics(request: Request):
 @app.get("/profile", response_class=HTMLResponse)
 async def profile(request: Request):
     try:
-        login_required(request)
-        return templates.TemplateResponse("profile.html", {"request": request})
+        user_id = login_required(request)
+        user = firebase_service.get_user_by_id(user_id)
+        if not user:
+            return RedirectResponse(url="/login", status_code=303)
+        return templates.TemplateResponse("profile.html", {"request": request, "user": user})
     except HTTPException:
         return RedirectResponse(url="/login", status_code=303)
 
@@ -468,6 +483,12 @@ async def logout(request: Request):
     request.session.clear()
     request.session["flash"] = {"type": "success", "message": "Logged out successfully."}
     return RedirectResponse(url="/login", status_code=303)
+
+
+@app.get("/.well-known/appspecific/com.chrome.devtools.json")
+def chrome_devtools():
+    return {}
+
 
 # Main entry point
 if __name__ == "__main__":

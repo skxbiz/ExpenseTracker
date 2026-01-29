@@ -201,6 +201,11 @@
 
   }
 
+  .list-item span a {
+    text-decoration: none;
+    color: black;
+  }
+
   /* Flash overlay styles */
   #flash-messages {
     position: fixed;
@@ -254,7 +259,8 @@
       </div>
       <button class="edit-btn">✏️</button>
     </div>
-    <h2>Rio Mario</h2>
+    <h2>{{ user.username }}</h2>
+    </h2>
     <div class="badge">⭐ Premium Member</div>
   </div>
   <!-- Account Section -->
@@ -264,11 +270,12 @@
       <li class="list-item">
         <div class="list-item-icon">👤</div><span>Personal Information</span>➡️
       </li>
-      <li class="list-item">
-        <div class="list-item-icon">🔒</div><span><a href="{{url_for('logout')}}">Logout</a></span>➡️
-      </li>
+
       <li class="list-item">
         <div class="list-item-icon">⚙️</div><span>Preferences</span>➡️
+      </li>
+      <li class="list-item">
+        <div class="list-item-icon">🔒</div><span><a href="{{url_for('logout')}}">Logout</a></span>➡️
       </li>
     </ul>
   </div>
