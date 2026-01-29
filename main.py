@@ -340,30 +340,67 @@ async def password_manager_get(request: Request):
 @app.post("/passwords", response_class=JSONResponse)
 async def password_manager_post(
     request: Request,
-    category: str = Form(...),
-    username: str = Form(...),
-    password: str = Form(...),
+    category: str = Form(None),
+    username: str = Form(None),
+    password: str = Form(None),
     activeOption: str = Form(...)
 ):
     try:
         user_id = login_required(request)
         service = PasswordService(user_id)
         
-        if not category or not username or not password:
-            return JSONResponse({"success": False, "error": "All fields are required!"})
-        
+        # Validation depends on the active option
         if activeOption == "New":
+            if not category or not username or not password:
+                return JSONResponse({"success": False, "error": "All fields are required for adding a new password!"})
             result = service.add_password(category, username, password)
             return JSONResponse({"success": True, "password": result}) if result else JSONResponse({"success": False, "password": None})
         
         elif activeOption == "Search":
-            results = service.search_passwords(category, username)
+            # For search, we can search with partial information
+            results = service.search_passwords(category or "", username or "")
             return JSONResponse({"success": True, "password": results}) if results else JSONResponse({"success": False, "password": []})
         
         elif activeOption == "List":
+            # For list, we just fetch all passwords for the user
             passwords = service.list_passwords()
             return JSONResponse({"success": True, "password": passwords})
+        
+        else:
+            return JSONResponse({"success": False, "error": "Invalid operation"})
             
+    except HTTPException:
+        return JSONResponse({"success": False, "error": "Authentication required"}, status_code=401)
+
+@app.post("/passwords/delete/{password_id}", response_class=JSONResponse)
+async def delete_password(request: Request, password_id: str):
+    try:
+        user_id = login_required(request)
+        service = PasswordService(user_id)
+        success = service.delete_password(password_id)
+        if success:
+            return JSONResponse({"success": True})
+        else:
+            return JSONResponse({"success": False, "error": "Failed to delete password"})
+    except HTTPException:
+        return JSONResponse({"success": False, "error": "Authentication required"}, status_code=401)
+
+@app.put("/passwords/{password_id}", response_class=JSONResponse)
+async def update_password(
+    request: Request, 
+    password_id: str,
+    category: str = Form(...),
+    username: str = Form(...),
+    password: str = Form(...)
+):
+    try:
+        user_id = login_required(request)
+        service = PasswordService(user_id)
+        success = service.update_password(password_id, category, username, password)
+        if success:
+            return JSONResponse({"success": True, "message": "Password updated successfully"})
+        else:
+            return JSONResponse({"success": False, "error": "Failed to update password"})
     except HTTPException:
         return JSONResponse({"success": False, "error": "Authentication required"}, status_code=401)
 

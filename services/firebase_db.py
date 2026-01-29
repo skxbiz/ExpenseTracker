@@ -315,7 +315,6 @@ class FirebaseService:
             query = (
                 self.db.collection("passwords")
                 .where(filter=FieldFilter("user_id", "==", user_id))
-                .order_by("date_time", direction=firestore.Query.DESCENDING)
             )
 
             results = []
@@ -324,6 +323,9 @@ class FirebaseService:
                 data = _convert_firestore_data(data)
                 data["id"] = doc.id
                 results.append(data)
+
+            # Sort by date_time in descending order after fetching
+            results.sort(key=lambda x: x.get('date_time', ''), reverse=True)
 
             return results
 
@@ -361,16 +363,15 @@ class FirebaseService:
             if username:
                 query = query.where(filter=FieldFilter("username", "==", username))
 
-            query = query.order_by(
-                "date_time", direction=firestore.Query.DESCENDING
-            )
-
             results = []
             for doc in query.stream():
                 data = doc.to_dict()
                 data = _convert_firestore_data(data)
                 data["id"] = doc.id
                 results.append(data)
+
+            # Sort by date_time in descending order after fetching
+            results.sort(key=lambda x: x.get('date_time', ''), reverse=True)
 
             return results
 
@@ -386,7 +387,6 @@ class FirebaseService:
             query = (
                 self.db.collection("passwords")
                 .where(filter=FieldFilter("user_id", "==", user_id))
-                .order_by("date_time", direction=firestore.Query.DESCENDING)
             )
 
             results = []
@@ -396,6 +396,9 @@ class FirebaseService:
                 data["id"] = doc.id
                 results.append(data)
 
+            # Sort by date_time in descending order after fetching
+            results.sort(key=lambda x: x.get('date_time', ''), reverse=True)
+
             return results
 
         except Exception as e:
@@ -403,6 +406,54 @@ class FirebaseService:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Failed to fetch passwords",
+            )
+
+    def delete_password(self, password_id: str) -> bool:
+        try:
+            ref = self.db.collection("passwords").document(password_id)
+            doc = ref.get()
+
+            if not doc.exists:
+                return False
+            
+            ref.delete()
+            return True
+
+        except Exception as e:
+            print(f"Error deleting password: {e}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to delete password",
+            )
+
+    def update_password(self, password_id: str, data: Dict[str, Any]) -> bool:
+        try:
+            ref = self.db.collection("passwords").document(password_id)
+            doc = ref.get()
+
+            if not doc.exists:
+                return False
+            
+            # Update only the provided fields
+            update_data = {}
+            if 'category' in data:
+                update_data['category'] = data['category']
+            if 'username' in data:
+                update_data['username'] = data['username']
+            if 'password' in data:
+                update_data['password'] = data['password']
+            
+            if update_data:
+                update_data["updated_at"] = datetime.utcnow()
+                ref.update(update_data)
+            
+            return True
+
+        except Exception as e:
+            print(f"Error updating password: {e}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to update password",
             )
 
 
