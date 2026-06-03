@@ -10,7 +10,7 @@ pwd_context = CryptContext(
 
 # Generate a key for encryption - in production, this should be stored securely
 try:
-    key = os.environ.get("ENCRYPTION_KEY")
+    key = "RioMario0201"
     if not key:
         # Generate a new key if not provided
         key = Fernet.generate_key().decode()
