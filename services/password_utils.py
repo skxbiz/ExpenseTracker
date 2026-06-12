@@ -1,18 +1,16 @@
 from passlib.context import CryptContext
 from cryptography.fernet import Fernet
 import base64
-import os
+import hashlib
 
 pwd_context = CryptContext(
     schemes=["pbkdf2_sha256"],
     deprecated="auto"
 )
 
-# Generate a key for encryption - in production, this should be stored securely
 try:
-    import hashlib
-
     password = "RioMario0201"
+
     key = base64.urlsafe_b64encode(
         hashlib.sha256(password.encode()).digest()
     )
