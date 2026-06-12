@@ -10,20 +10,17 @@ pwd_context = CryptContext(
 
 # Generate a key for encryption - in production, this should be stored securely
 try:
-    key = "RioMario0201"
-    if not key:
-        # Generate a new key if not provided
-        key = Fernet.generate_key().decode()
-        print("Encryption key generated. Set ENCRYPTION_KEY environment variable for production.")
-    
-    # Ensure the key is in the correct format
-    if isinstance(key, str):
-        key = key.encode()
-    
+    import hashlib
+
+    password = "RioMario0201"
+    key = base64.urlsafe_b64encode(
+        hashlib.sha256(password.encode()).digest()
+    )
+
     cipher_suite = Fernet(key)
+
 except Exception as e:
     print(f"Error initializing encryption: {e}")
-    # Fallback to a temporary key (not secure for production)
     key = Fernet.generate_key()
     cipher_suite = Fernet(key)
 
